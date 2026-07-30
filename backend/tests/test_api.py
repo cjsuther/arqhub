@@ -129,6 +129,21 @@ def test_view_graph_and_layout_roundtrip(client):
     assert len(g2["layout"]) == 2
 
 
+def test_export_endpoints(client):
+    am = client.get("/api/v1/export/archimate?view=vista-app-pagos")
+    assert am.status_code == 200 and am.headers["content-type"].startswith("application/xml")
+    assert "ApplicationComponent" in am.text
+
+    bpmn = client.get("/api/v1/export/bpmn?view=proceso-originacion")
+    assert bpmn.status_code == 200 and "<bpmn:process" in bpmn.text
+
+    xmi = client.get("/api/v1/export/xmi?view=vista-app-pagos")
+    assert xmi.status_code == 200 and "uml:Model" in xmi.text
+
+    assert client.get("/api/v1/export/image?view=vista-app-pagos&format=svg").status_code == 200
+    assert client.get("/api/v1/export/image?view=vista-app-pagos&format=png").status_code == 501
+
+
 def test_view_versioning_and_diff(client):
     # Two versions of the same view with a change in between -> semantic diff.
     v1 = client.post("/api/v1/views/vista-app-pagos/versions", json={"message": "v1"}).json()

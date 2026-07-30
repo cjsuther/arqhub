@@ -72,7 +72,14 @@ operativas (§15 de la spec).
     de layout (`PUT /views/{slug}/layout`). Verificado E2E contra el backend.
   - ⏳ Pendiente Fase 2: drag & drop real desde la paleta, undo/redo, snap-to-grid, merge fino de
     layout manual vs auto al importar por IA.
-- Fases 3–6: ver SPEC §14 (BPMN/UML, exportadores estándar, governance+Teams, MCP+análisis).
+- **Fase 3 — BPMN/UML + exportadores** (en curso):
+  - ✅ **Exportadores estándar** (`services/exporters/`): ArchiMate Open Exchange XML, **BPMN 2.0 XML
+    con BPMNDI** (abre en Camunda), XMI (UML). Endpoints `/export/{archimate,bpmn,xmi,image}`. Tests
+    parsean y validan el XML.
+  - ✅ Canvas consciente del lenguaje: nodos BPMN (task redondeada, evento círculo, gateway rombo) y
+    UML (estereotipo), más menú **Exportar** en el editor.
+  - ⏳ Pendiente Fase 3: pools/lanes BPMN como subflows (§16, prototipo), drill-down proceso→BPMN, PNG.
+- Fases 4–6: governance+Teams, MCP+análisis, hardening (ver SPEC §14).
 
 ## Cómo correr el frontend
 

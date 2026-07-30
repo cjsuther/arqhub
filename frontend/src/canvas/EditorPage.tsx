@@ -20,6 +20,7 @@ import { api } from "../lib/api";
 import type { Element } from "../lib/types";
 import { StatusBadge, langLabel } from "../lib/ui";
 import { ArchiMateNode, type ArchiNode } from "./ArchiMateNode";
+import { ExportMenu } from "./ExportMenu";
 import { EdgeMarkers } from "./markers";
 import { Palette } from "./Palette";
 import { PropertiesPanel } from "./PropertiesPanel";
@@ -79,7 +80,7 @@ function EditorInner() {
           id: e.slug,
           type: "archimate",
           position: positions[e.slug],
-          data: { element: e, layer: reg.kinds[e.kind]?.layer ?? "application" },
+          data: { element: e, layer: reg.kinds[e.kind]?.layer ?? "application", lang: vg.view.lang },
         })),
       );
       setEdges(
@@ -150,6 +151,7 @@ function EditorInner() {
         </div>
         {vg && <StatusBadge value={vg.view.status} />}
         <div className="ml-auto flex items-center gap-2">
+          <ExportMenu slug={slug} />
           <button className="btn btn-ghost" onClick={organize}><LayoutGrid size={15} /> Organizar</button>
           <button className="btn btn-primary" onClick={persistLayout}>
             <Save size={15} /> {saved ? "Guardado" : "Guardar layout"}
