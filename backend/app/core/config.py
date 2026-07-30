@@ -25,8 +25,8 @@ class Settings(BaseSettings):
     entra_role_map: dict[str, str] = {}
     default_role: str = "viewer"
 
-    default_tenant_slug: str = "bna"
-    default_tenant_name: str = "Banco de la Nacion Argentina"
+    default_tenant_slug: str = "demo"
+    default_tenant_name: str = "Demo Org"
 
     # Redis for the arq job worker (exports, notifications, daily snapshots — §11).
     redis_url: str = "redis://localhost:6379"

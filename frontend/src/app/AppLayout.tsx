@@ -48,7 +48,7 @@ export function AppLayout() {
           <button className="btn btn-ghost" onClick={toggle} title="Cambiar tema">
             {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
           </button>
-          <div className="badge bg-black/5 dark:bg-white/10">BNA</div>
+          <div className="badge bg-black/5 dark:bg-white/10">Demo</div>
         </header>
 
         <main className="min-h-0 flex-1 overflow-auto p-6">

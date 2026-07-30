@@ -47,7 +47,7 @@ def _mint(priv=PRIV_PEM, **overrides) -> str:
         "iss": ISSUER,
         "aud": AUDIENCE,
         "oid": "oid-abc",
-        "preferred_username": "ana@bna.local",
+        "preferred_username": "ana@example.com",
         "name": "Ana Perez",
         "iat": now,
         "exp": now + 3600,
@@ -80,7 +80,7 @@ def provider():
 
 def test_valid_token_provisions_user(db, provider):
     p = provider.authenticate(db, _mint(roles=["editor"]))
-    assert p.email == "ana@bna.local"
+    assert p.email == "ana@example.com"
     assert p.role == "editor"
     user = db.scalar(select(User).where(User.entra_oid == "oid-abc"))
     assert user is not None and user.display_name == "Ana Perez"
