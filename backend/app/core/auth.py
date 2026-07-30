@@ -55,6 +55,16 @@ def ensure_seed(db: Session) -> tuple[Tenant, User]:
         )
         db.add(admin)
         db.flush()
+
+    # A few sample approvers so the review picklist has options in dev.
+    if settings.dev_auth:
+        for email, name, role in (
+            ("ana@arqhub.local", "Ana Aprobadora", "approver"),
+            ("beto@arqhub.local", "Beto Revisor", "approver"),
+            ("caro@arqhub.local", "Caro Editora", "editor"),
+        ):
+            if db.scalar(select(User).where(User.tenant_id == tenant.id, User.email == email)) is None:
+                db.add(User(tenant_id=tenant.id, email=email, display_name=name, role=role))
     db.commit()
     return tenant, admin
 

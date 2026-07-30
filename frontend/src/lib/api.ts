@@ -6,6 +6,7 @@ import type {
   LayoutNode,
   Registry,
   Relationship,
+  User,
   View,
   ViewGraph,
 } from "./types";
@@ -53,6 +54,11 @@ export const api = {
 
   listViews: () => http<View[]>("/views"),
   getView: (slug: string) => http<View>(`/views/${slug}`),
+  createView: (body: { slug: string; name: string; lang: string; viewpoint?: string }) =>
+    http<View>("/views", {
+      method: "POST",
+      body: JSON.stringify({ ...body, include: { elements: [], relations: "auto" } }),
+    }),
   getViewGraph: (slug: string) => http<ViewGraph>(`/views/${slug}/graph`),
   putLayout: (slug: string, nodes: LayoutNode[]) =>
     http<void>(`/views/${slug}/layout`, { method: "PUT", body: JSON.stringify({ nodes }) }),
@@ -80,4 +86,6 @@ export const api = {
     http<Approval>(`/approvals/${id}/reject`, { method: "POST", body: JSON.stringify({ comment }) }),
 
   analyze: () => http<Finding[]>("/analysis"),
+
+  listUsers: (role?: string) => http<User[]>(`/users${qs({ role })}`),
 };

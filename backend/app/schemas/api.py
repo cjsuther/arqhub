@@ -132,6 +132,14 @@ class ViewGraphRead(BaseModel):
     layout: list[LayoutNode]
 
 
+# --- Users (SPEC §7) ---------------------------------------------------------
+class UserRead(BaseModel):
+    id: str
+    email: str
+    display_name: str
+    role: str  # viewer|editor|approver|admin
+
+
 # --- Governance / approvals (SPEC §11) ---------------------------------------
 class SubmitReviewBody(BaseModel):
     approvers: list[str] = Field(default_factory=list)  # user emails/ids

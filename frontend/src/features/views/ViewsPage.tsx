@@ -1,21 +1,30 @@
 import { useQuery } from "@tanstack/react-query";
-import { LayoutGrid } from "lucide-react";
+import { LayoutGrid, Plus } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { api } from "../../lib/api";
 import { StatusBadge, langLabel } from "../../lib/ui";
+import { NewViewModal } from "./NewViewModal";
 
 export function ViewsPage() {
   const views = useQuery({ queryKey: ["views"], queryFn: api.listViews });
+  const [creating, setCreating] = useState(false);
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">Vistas</h1>
-        <p className="text-sm text-[hsl(var(--muted))]">
-          Las vistas son proyecciones del modelo. El editor canvas llega en la Fase 2.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold">Vistas</h1>
+          <p className="text-sm text-[hsl(var(--muted))]">
+            Las vistas son proyecciones del modelo. Creá una y armala en el editor canvas.
+          </p>
+        </div>
+        <button className="btn btn-primary" onClick={() => setCreating(true)}>
+          <Plus size={16} /> Nueva vista
+        </button>
       </div>
+      {creating && <NewViewModal onClose={() => setCreating(false)} />}
 
       {views.isError && (
         <p className="text-sm text-red-500">Error al cargar. ¿Está el backend en :8000?</p>

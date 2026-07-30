@@ -66,6 +66,13 @@ export interface ViewGraph {
   layout: LayoutNode[];
 }
 
+export interface User {
+  id: string;
+  email: string;
+  display_name: string;
+  role: "viewer" | "editor" | "approver" | "admin";
+}
+
 export interface Finding {
   code: string;
   severity: "info" | "warning" | "error";
