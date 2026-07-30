@@ -81,7 +81,12 @@ function EditorInner() {
           id: e.slug,
           type: "archimate",
           position: positions[e.slug],
-          data: { element: e, layer: reg.kinds[e.kind]?.layer ?? "application", lang: vg.view.lang },
+          data: {
+            element: e,
+            layer: reg.kinds[e.kind]?.layer ?? "application",
+            lang: vg.view.lang,
+            projection: reg.kinds[e.kind]?.mappings[vg.view.lang] ?? null,
+          },
         })),
       );
       setEdges(

@@ -21,6 +21,7 @@ dist/
 
 # --- Third-party reference material (copyrighted; not redistributed) ---
 defs/*.pdf
+defs/*.docx
 
 # --- OS / editor ---
 .DS_Store
