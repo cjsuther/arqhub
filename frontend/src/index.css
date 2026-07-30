@@ -1,0 +1,59 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg: 0 0% 100%;
+    --surface: 0 0% 98%;
+    --border: 220 13% 91%;
+    --fg: 222 47% 11%;
+    --muted: 220 9% 46%;
+    --accent: 221 83% 53%;
+  }
+  .dark {
+    --bg: 222 47% 8%;
+    --surface: 222 40% 12%;
+    --border: 222 20% 22%;
+    --fg: 210 40% 96%;
+    --muted: 217 15% 65%;
+    --accent: 217 91% 60%;
+  }
+  html,
+  body {
+    @apply h-full;
+  }
+  body {
+    background-color: hsl(var(--bg));
+    color: hsl(var(--fg));
+    @apply font-sans antialiased;
+  }
+}
+
+@layer components {
+  .surface {
+    background-color: hsl(var(--surface));
+    border-color: hsl(var(--border));
+  }
+  .btn {
+    @apply inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition;
+  }
+  .btn-primary {
+    background-color: hsl(var(--accent));
+    @apply text-white hover:opacity-90;
+  }
+  .btn-ghost {
+    @apply hover:bg-black/5 dark:hover:bg-white/5;
+    border: 1px solid hsl(var(--border));
+  }
+  .input {
+    background-color: hsl(var(--bg));
+    border: 1px solid hsl(var(--border));
+    @apply rounded-md px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/40;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+}

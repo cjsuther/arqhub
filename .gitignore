@@ -1,0 +1,29 @@
+# --- Python / backend ---
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+*.db
+
+# --- Node / frontend ---
+node_modules/
+dist/
+.vite/
+*.local
+*.tsbuildinfo
+
+# --- Secrets / env ---
+.env
+.env.*
+!.env.example
+
+# --- Third-party reference material (copyrighted; not redistributed) ---
+defs/*.pdf
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
