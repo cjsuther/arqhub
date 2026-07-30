@@ -5,8 +5,17 @@ from __future__ import annotations
 from fastapi import APIRouter, Body, Depends, Query, Response, status
 
 from ...core.deps import DbDep, PrincipalDep, require_role
-from ...schemas.api import LayoutPut, ViewCreate, ViewGraphRead, ViewRead, ViewUpdate, VersionRead
-from ...services import views
+from ...schemas.api import (
+    ApprovalRead,
+    LayoutPut,
+    SubmitReviewBody,
+    ViewCreate,
+    ViewGraphRead,
+    ViewRead,
+    ViewUpdate,
+    VersionRead,
+)
+from ...services import approvals, views
 from ...services.dsl.diff import ModelDiff
 
 router = APIRouter(prefix="/views", tags=["views"])
@@ -58,6 +67,21 @@ def create_version(db: DbDep, slug: str, message: str | None = Body(None, embed=
 @router.get("/{slug}/versions", response_model=list[VersionRead])
 def list_versions(db: DbDep, principal: PrincipalDep, slug: str):
     return views.list_view_versions(db, principal.tenant_id, slug)
+
+
+@router.post("/{slug}/submit-review", response_model=ApprovalRead, status_code=status.HTTP_201_CREATED)
+def submit_review(db: DbDep, slug: str, body: SubmitReviewBody, principal=Depends(require_role("editor"))):
+    return approvals.submit_review(db, principal, slug, body.approvers, body.comment)
+
+
+@router.post("/{slug}/publish", response_model=ViewRead)
+def publish(db: DbDep, slug: str, principal=Depends(require_role("approver"))):
+    return approvals.publish(db, principal, slug)
+
+
+@router.post("/{slug}/deprecate", response_model=ViewRead)
+def deprecate(db: DbDep, slug: str, principal=Depends(require_role("approver"))):
+    return approvals.deprecate(db, principal, slug)
 
 
 @router.get("/{slug}/diff", response_model=ModelDiff)

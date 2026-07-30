@@ -6,6 +6,8 @@ import { RouterProvider, createBrowserRouter, Navigate } from "react-router-dom"
 import "./index.css";
 import { AppLayout } from "./app/AppLayout";
 import { EditorPage } from "./canvas/EditorPage";
+import { AnalysisPage } from "./features/analysis/AnalysisPage";
+import { ApprovalsPage } from "./features/approvals/ApprovalsPage";
 import { CatalogPage } from "./features/catalog/CatalogPage";
 import { ElementDetailPage } from "./features/catalog/ElementDetailPage";
 import { ViewsPage } from "./features/views/ViewsPage";
@@ -23,6 +25,8 @@ const router = createBrowserRouter([
       { path: "catalog", element: <CatalogPage /> },
       { path: "catalog/:slug", element: <ElementDetailPage /> },
       { path: "views", element: <ViewsPage /> },
+      { path: "approvals", element: <ApprovalsPage /> },
+      { path: "analysis", element: <AnalysisPage /> },
     ],
   },
   // Editor is full-screen (its own chrome), outside the app shell.

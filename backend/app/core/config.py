@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     # Redis for the arq job worker (exports, notifications, daily snapshots — §11).
     redis_url: str = "redis://localhost:6379"
 
+    # Rate limiting (§9/§12). Off by default so dev/tests are unthrottled.
+    rate_limit_enabled: bool = False
+    rate_limit_per_minute: int = 120
+
     api_prefix: str = "/api/v1"
 
     def entra_effective_issuer(self) -> str | None:

@@ -65,3 +65,22 @@ export interface ViewGraph {
   relations: Relationship[];
   layout: LayoutNode[];
 }
+
+export interface Finding {
+  code: string;
+  severity: "info" | "warning" | "error";
+  message: string;
+  entities: string[];
+  suggestion: string | null;
+}
+
+export interface Approval {
+  id: string;
+  view_slug: string;
+  view_version: number;
+  status: "pending" | "approved" | "rejected" | "cancelled";
+  requested_by: string | null;
+  approvers: string[];
+  resolved_by: string | null;
+  comment: string | null;
+}

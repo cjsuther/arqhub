@@ -9,7 +9,7 @@ from sqlalchemy import delete
 
 from ..core.auth import Principal
 from ..core.deps import write_audit
-from ..models import ModelVersion, View, ViewLayout
+from ..models import ApprovalRequest, ModelVersion, View, ViewLayout
 from ..schemas.api import (
     LayoutNode,
     LayoutPut,
@@ -113,6 +113,18 @@ def create_view(db, principal: Principal, payload: ViewCreate) -> ViewRead:
 def update_view(db, principal: Principal, slug: str, payload: ViewUpdate) -> ViewRead:
     row = _get_view_row(db, principal.tenant_id, slug)
     changes = payload.model_dump(exclude_none=True)
+
+    # Editing an in-review view cancels its pending request and returns to draft
+    # (SPEC §11), unless the caller is explicitly changing the status.
+    if row.status == "in_review" and "status" not in changes:
+        for ar in db.scalars(
+            select(ApprovalRequest).where(
+                ApprovalRequest.view_id == row.id, ApprovalRequest.status == "pending"
+            )
+        ):
+            ar.status = "cancelled"
+        row.status = "draft"
+
     for field, value in changes.items():
         setattr(row, field, value)
     write_audit(db, principal, action="update", entity="view", entity_id=slug, payload={"fields": list(changes)})

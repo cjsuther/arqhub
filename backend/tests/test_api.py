@@ -129,6 +129,49 @@ def test_view_graph_and_layout_roundtrip(client):
     assert len(g2["layout"]) == 2
 
 
+def _new_view(client, slug, elements):
+    return client.post("/api/v1/views", json={
+        "slug": slug, "name": slug, "lang": "archimate",
+        "include": {"elements": elements, "relations": "auto"},
+    })
+
+
+def test_governance_happy_path(client):
+    _new_view(client, "gov-a", ["portal-web", "api-pagos"])
+    r = client.post("/api/v1/views/gov-a/submit-review",
+                    json={"approvers": ["boss@example.com"], "comment": "please review"})
+    assert r.status_code == 201, r.text
+    approval_id = r.json()["id"]
+    assert client.get("/api/v1/views/gov-a").json()["status"] == "in_review"
+
+    # Cannot publish before an approval on the current version.
+    assert client.post("/api/v1/views/gov-a/publish").status_code == 409
+
+    ap = client.post(f"/api/v1/approvals/{approval_id}/approve", json={"comment": "ok"})
+    assert ap.json()["status"] == "approved"
+
+    assert client.post("/api/v1/views/gov-a/publish").json()["status"] == "published"
+
+
+def test_governance_reject_returns_to_draft(client):
+    _new_view(client, "gov-b", ["portal-web"])
+    aid = client.post("/api/v1/views/gov-b/submit-review", json={"approvers": []}).json()["id"]
+    client.post(f"/api/v1/approvals/{aid}/reject", json={"comment": "necesita cambios"})
+    assert client.get("/api/v1/views/gov-b").json()["status"] == "draft"
+
+
+def test_editing_in_review_cancels_request(client):
+    _new_view(client, "gov-c", ["portal-web"])
+    aid = client.post("/api/v1/views/gov-c/submit-review", json={"approvers": []}).json()["id"]
+    assert client.get("/api/v1/views/gov-c").json()["status"] == "in_review"
+
+    client.patch("/api/v1/views/gov-c", json={"name": "Gov C editada"})
+    assert client.get("/api/v1/views/gov-c").json()["status"] == "draft"
+
+    cancelled = {a["id"] for a in client.get("/api/v1/approvals?status=cancelled").json()}
+    assert aid in cancelled
+
+
 def test_export_endpoints(client):
     am = client.get("/api/v1/export/archimate?view=vista-app-pagos")
     assert am.status_code == 200 and am.headers["content-type"].startswith("application/xml")

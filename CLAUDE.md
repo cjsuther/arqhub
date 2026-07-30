@@ -79,7 +79,22 @@ operativas (§15 de la spec).
   - ✅ Canvas consciente del lenguaje: nodos BPMN (task redondeada, evento círculo, gateway rombo) y
     UML (estereotipo), más menú **Exportar** en el editor.
   - ⏳ Pendiente Fase 3: pools/lanes BPMN como subflows (§16, prototipo), drill-down proceso→BPMN, PNG.
-- Fases 4–6: governance+Teams, MCP+análisis, hardening (ver SPEC §14).
+- **Fase 4 — Governance + Teams** (funcional):
+  - ✅ Workflow `draft→in_review→published→deprecated` (`services/approvals.py`): submit-review
+    congela snapshot, approve/reject, publish (requiere aprobación de la versión vigente), deprecate;
+    editar una vista en revisión cancela la solicitud. Endpoints + RBAC (IA no aprueba/publica, §9).
+  - ✅ Notificaciones detrás de interfaz `NotificationProvider` (impl de logging). Teams (Graph +
+    Adaptive Cards) y email SMTP quedan como stubs documentados (requieren tenant M365).
+  - ✅ UI: badge de estado + controles de governance en el editor, bandeja de **Aprobaciones**.
+- **Fase 5 — MCP + análisis** (funcional):
+  - ✅ **Motor de análisis §10** (`services/analysis.py`, puro): duplicados, huérfanos, ciclo de
+    vida, acoplamiento (p90), violaciones de matriz. Endpoint `/analysis` + página **Análisis** en la UI.
+  - ✅ **Servidor MCP** (`mcp-server/`, SDK oficial `mcp`): 15 tools (§9) que envuelven la API REST;
+    **no** expone approve/reject/publish/delete (seguridad §9). stdio + HTTP streamable. Test de tools.
+- **Fase 6 — Hardening** (parcial):
+  - ✅ Rate limiting por token/IP (`core/ratelimit.py`, middleware configurable). Dark mode (Fase 2).
+  - ✅ Packaging: Dockerfile del frontend (nginx) + `docker compose` con `web`/`api`/`worker`/`db`/`redis`.
+  - ⏳ Pendiente: RLS FORCE + rol dedicado (necesita Postgres), performance canvas >200 nodos, backup/restore.
 
 ## Cómo correr el frontend
 

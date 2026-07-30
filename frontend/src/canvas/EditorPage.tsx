@@ -21,6 +21,7 @@ import type { Element } from "../lib/types";
 import { StatusBadge, langLabel } from "../lib/ui";
 import { ArchiMateNode, type ArchiNode } from "./ArchiMateNode";
 import { ExportMenu } from "./ExportMenu";
+import { GovernanceControls } from "./GovernanceControls";
 import { EdgeMarkers } from "./markers";
 import { Palette } from "./Palette";
 import { PropertiesPanel } from "./PropertiesPanel";
@@ -150,6 +151,7 @@ function EditorInner() {
           </div>
         </div>
         {vg && <StatusBadge value={vg.view.status} />}
+        {vg && <GovernanceControls view={vg.view} onChanged={refetch} />}
         <div className="ml-auto flex items-center gap-2">
           <ExportMenu slug={slug} />
           <button className="btn btn-ghost" onClick={organize}><LayoutGrid size={15} /> Organizar</button>

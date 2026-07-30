@@ -1,5 +1,14 @@
 // Thin typed API client. All calls go through the Vite proxy to the backend.
-import type { Element, LayoutNode, Registry, Relationship, View, ViewGraph } from "./types";
+import type {
+  Approval,
+  Element,
+  Finding,
+  LayoutNode,
+  Registry,
+  Relationship,
+  View,
+  ViewGraph,
+} from "./types";
 
 const BASE = "/api/v1";
 
@@ -54,4 +63,21 @@ export const api = {
       body: JSON.stringify({ include: { ...view.include, elements: merged } }),
     });
   },
+
+  // Governance (SPEC §11)
+  submitReview: (slug: string, approvers: string[], comment?: string) =>
+    http<Approval>(`/views/${slug}/submit-review`, {
+      method: "POST",
+      body: JSON.stringify({ approvers, comment }),
+    }),
+  publishView: (slug: string) => http<View>(`/views/${slug}/publish`, { method: "POST" }),
+  deprecateView: (slug: string) => http<View>(`/views/${slug}/deprecate`, { method: "POST" }),
+  listApprovals: (params: { status?: string; mine?: boolean } = {}) =>
+    http<Approval[]>(`/approvals${qs({ status: params.status, mine: params.mine ? "true" : undefined })}`),
+  approve: (id: string, comment?: string) =>
+    http<Approval>(`/approvals/${id}/approve`, { method: "POST", body: JSON.stringify({ comment }) }),
+  reject: (id: string, comment?: string) =>
+    http<Approval>(`/approvals/${id}/reject`, { method: "POST", body: JSON.stringify({ comment }) }),
+
+  analyze: () => http<Finding[]>("/analysis"),
 };

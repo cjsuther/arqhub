@@ -1,4 +1,4 @@
-import { Boxes, LayoutGrid, Moon, Network, Search, Sun } from "lucide-react";
+import { Boxes, CheckSquare, LayoutGrid, Moon, Network, Search, Sparkles, Sun } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import { useTheme } from "./theme";
@@ -6,6 +6,8 @@ import { useTheme } from "./theme";
 const NAV = [
   { to: "/catalog", label: "Catálogo", icon: Boxes },
   { to: "/views", label: "Vistas", icon: LayoutGrid },
+  { to: "/approvals", label: "Aprobaciones", icon: CheckSquare },
+  { to: "/analysis", label: "Análisis", icon: Sparkles },
 ];
 
 export function AppLayout() {

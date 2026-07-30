@@ -132,6 +132,27 @@ class ViewGraphRead(BaseModel):
     layout: list[LayoutNode]
 
 
+# --- Governance / approvals (SPEC §11) ---------------------------------------
+class SubmitReviewBody(BaseModel):
+    approvers: list[str] = Field(default_factory=list)  # user emails/ids
+    comment: str | None = None
+
+
+class ResolveBody(BaseModel):
+    comment: str | None = None
+
+
+class ApprovalRead(BaseModel):
+    id: str
+    view_slug: str
+    view_version: int
+    status: str  # pending|approved|rejected|cancelled
+    requested_by: str | None
+    approvers: list[str]
+    resolved_by: str | None
+    comment: str | None
+
+
 # --- DSL import --------------------------------------------------------------
 class ImportReport(BaseModel):
     applied: bool

@@ -25,12 +25,32 @@ services:
     build: ./backend
     environment:
       ARQHUB_DATABASE_URL: postgresql+psycopg://arqhub:arqhub@db:5432/arqhub
+      ARQHUB_REDIS_URL: redis://redis:6379
       ARQHUB_DEV_AUTH: "true"
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
+
+  worker:
+    build: ./backend
+    command: arq app.workers.main.WorkerSettings
+    environment:
+      ARQHUB_DATABASE_URL: postgresql+psycopg://arqhub:arqhub@db:5432/arqhub
+      ARQHUB_REDIS_URL: redis://redis:6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  web:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
 
 volumes:
   db_data:
