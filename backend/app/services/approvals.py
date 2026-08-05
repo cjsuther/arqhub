@@ -20,8 +20,8 @@ from sqlalchemy.orm import Session
 
 from ..core.auth import Principal
 from ..core.deps import write_audit
-from ..models import ApprovalRequest, User, View
-from ..schemas.api import ApprovalRead, ViewRead
+from ..models import ApprovalDecision, ApprovalRequest, User, View
+from ..schemas.api import ApprovalDecisionRead, ApprovalRead, ViewRead
 from . import views as views_service
 from .notifications import get_notifier
 
@@ -48,13 +48,27 @@ def _to_read(db: Session, tenant_id: str, ar: ApprovalRequest) -> ApprovalRead:
     view = db.get(View, ar.view_id)
     name = _name_resolver(db, tenant_id)
     approvers = list(ar.approvers or [])
+    decisions = db.scalars(
+        select(ApprovalDecision).where(ApprovalDecision.approval_id == ar.id)
+        .order_by(ApprovalDecision.created_at)
+    ).all()
     return ApprovalRead(
         id=ar.id, view_slug=view.slug if view else "?", view_version=ar.view_version,
         view_status=view.status if view else "?",
         status=ar.status,
+        created_at=ar.created_at.isoformat() if ar.created_at else "",
         requested_by=ar.requested_by, requested_by_name=name(ar.requested_by),
         approvers=approvers, approver_names=[name(a) or a for a in approvers],
+        decisions=[
+            ApprovalDecisionRead(
+                approver_id=d.approver_id, approver_name=name(d.approver_id),
+                decision=d.decision, comment=d.comment,
+                decided_at=d.created_at.isoformat() if d.created_at else "",
+            )
+            for d in decisions
+        ],
         resolved_by=ar.resolved_by, resolved_by_name=name(ar.resolved_by),
+        resolved_at=ar.resolved_at.isoformat() if ar.resolved_at else None,
         comment=ar.comment,
     )
 
@@ -69,7 +83,7 @@ def submit_review(
     version = views_service.create_view_version(
         db, principal, slug, message="submit for review"
     ).version
-    row.status = "in_review"
+    views_service.set_view_status(db, row, "in_review", principal)
     ar = ApprovalRequest(
         tenant_id=principal.tenant_id, view_id=row.id, view_version=version,
         requested_by=principal.user_id, status="pending", approvers=approvers, comment=comment,
@@ -95,33 +109,84 @@ def _get_pending(db: Session, tenant_id: str, approval_id: str) -> ApprovalReque
     return ar
 
 
-def _resolve(db, principal, approval_id, *, outcome: str, comment) -> ApprovalRead:
+def _approver_ids(db: Session, tenant_id: str, approvers: list[str]) -> set[str]:
+    """Resolve the designated approvers (ids or emails) to user ids."""
+    users = db.scalars(select(User).where(User.tenant_id == tenant_id)).all()
+    by_id = {u.id for u in users}
+    by_email = {u.email: u.id for u in users}
+    out: set[str] = set()
+    for a in approvers:
+        if a in by_id:
+            out.add(a)
+        elif a in by_email:
+            out.add(by_email[a])
+    return out
+
+
+def _recompute_status(decisions: list[ApprovalDecision], approver_ids: set[str]) -> str:
+    """Overall status from the individual decisions (multi-approver policy §11).
+
+    Any rejection rejects the request; it is approved once every designated
+    approver has approved (or, when none was named/resolvable, on the first
+    approval); otherwise it stays pending.
+    """
+    if any(d.decision == "rejected" for d in decisions):
+        return "rejected"
+    approved = {d.approver_id for d in decisions if d.decision == "approved"}
+    if approver_ids:
+        return "approved" if approver_ids <= approved else "pending"
+    return "approved" if approved else "pending"
+
+
+def _decide(db, principal, approval_id, *, decision: str, comment) -> ApprovalRead:
+    if not comment or not comment.strip():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "El comentario es obligatorio al aprobar o rechazar.")
     ar = _get_pending(db, principal.tenant_id, approval_id)
-    ar.status = outcome
-    ar.resolved_by = principal.user_id
-    ar.resolved_at = _now()
-    ar.comment = comment or ar.comment
+
+    # Upsert this approver's decision (re-deciding overwrites the previous one).
+    existing = db.scalar(
+        select(ApprovalDecision).where(
+            ApprovalDecision.approval_id == ar.id, ApprovalDecision.approver_id == principal.user_id
+        )
+    )
+    if existing is not None:
+        existing.decision = decision
+        existing.comment = comment.strip()
+    else:
+        db.add(ApprovalDecision(
+            tenant_id=principal.tenant_id, approval_id=ar.id,
+            approver_id=principal.user_id, decision=decision, comment=comment.strip(),
+        ))
+    db.flush()
+
+    decisions = db.scalars(select(ApprovalDecision).where(ApprovalDecision.approval_id == ar.id)).all()
+    ar.status = _recompute_status(decisions, _approver_ids(db, principal.tenant_id, list(ar.approvers or [])))
 
     view = db.get(View, ar.view_id)
-    if outcome == "rejected" and view is not None:
-        view.status = "draft"  # back to the editor
-    write_audit(db, principal, action=outcome, entity="approval", entity_id=approval_id,
-                payload={"view": view.slug if view else None})
+    if ar.status in ("approved", "rejected"):
+        ar.resolved_by = principal.user_id
+        ar.resolved_at = _now()
+        ar.comment = comment.strip()
+        if ar.status == "rejected" and view is not None:
+            views_service.set_view_status(db, view, "draft", principal)  # back to the editor
+
+    write_audit(db, principal, action=decision, entity="approval", entity_id=approval_id,
+                payload={"view": view.slug if view else None, "request_status": ar.status})
     db.commit()
 
     get_notifier().approval_resolved(
         view_slug=view.slug if view else "?", view_name=view.name if view else "?",
-        status=outcome, resolved_by=principal.email, requested_by=ar.requested_by,
+        status=decision, resolved_by=principal.email, requested_by=ar.requested_by,
     )
     return _to_read(db, principal.tenant_id, ar)
 
 
 def approve(db, principal, approval_id, comment=None) -> ApprovalRead:
-    return _resolve(db, principal, approval_id, outcome="approved", comment=comment)
+    return _decide(db, principal, approval_id, decision="approved", comment=comment)
 
 
 def reject(db, principal, approval_id, comment=None) -> ApprovalRead:
-    return _resolve(db, principal, approval_id, outcome="rejected", comment=comment)
+    return _decide(db, principal, approval_id, decision="rejected", comment=comment)
 
 
 def publish(db, principal, slug) -> ViewRead:
@@ -138,7 +203,7 @@ def publish(db, principal, slug) -> ViewRead:
         raise HTTPException(
             status.HTTP_409_CONFLICT, "Publish requires an approved review of the current version."
         )
-    row.status = "published"
+    views_service.set_view_status(db, row, "published", principal)
     write_audit(db, principal, action="publish", entity="view", entity_id=slug,
                 payload={"version": row.current_version})
     db.commit()
@@ -147,7 +212,7 @@ def publish(db, principal, slug) -> ViewRead:
 
 def deprecate(db, principal, slug) -> ViewRead:
     row = views_service._get_view_row(db, principal.tenant_id, slug)
-    row.status = "deprecated"
+    views_service.set_view_status(db, row, "deprecated", principal)
     write_audit(db, principal, action="deprecate", entity="view", entity_id=slug)
     db.commit()
     return views_service.get_view(db, principal.tenant_id, slug)

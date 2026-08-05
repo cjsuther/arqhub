@@ -19,12 +19,12 @@ def list_approvals(
 
 
 @router.post("/{approval_id}/approve", response_model=ApprovalRead)
-def approve(db: DbDep, approval_id: str, body: ResolveBody | None = None,
+def approve(db: DbDep, approval_id: str, body: ResolveBody,
             principal=Depends(require_role("approver"))):
-    return approvals.approve(db, principal, approval_id, body.comment if body else None)
+    return approvals.approve(db, principal, approval_id, body.comment)
 
 
 @router.post("/{approval_id}/reject", response_model=ApprovalRead)
-def reject(db: DbDep, approval_id: str, body: ResolveBody | None = None,
+def reject(db: DbDep, approval_id: str, body: ResolveBody,
            principal=Depends(require_role("approver"))):
-    return approvals.reject(db, principal, approval_id, body.comment if body else None)
+    return approvals.reject(db, principal, approval_id, body.comment)

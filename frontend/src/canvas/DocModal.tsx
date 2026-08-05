@@ -1,9 +1,14 @@
 import {
-  Bold, Heading, Italic, List, ListOrdered, Link as LinkIcon, Redo2, Underline, X,
+  Bold, Eye, Heading, Italic, List, ListOrdered, Link as LinkIcon, Pencil, Redo2, Underline, X,
 } from "lucide-react";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { api } from "../lib/api";
+
+// Shared prose styling for both the editor surface and the read-only preview.
+const PROSE =
+  "[&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:text-base [&_h3]:font-semibold [&_ul]:list-disc [&_ul]:pl-5 " +
+  "[&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-[hsl(var(--accent))] [&_a]:underline";
 
 // Minimal WYSIWYG built on contentEditable + execCommand — no external dependency
 // (keeps the bundle small and avoids the corporate npm proxy). Stores HTML.
@@ -44,11 +49,30 @@ function RichTextEditor({ initial, onChange }: { initial: string; onChange: (htm
         ref={ref}
         contentEditable
         suppressContentEditableWarning
-        className="prose-sm min-h-48 flex-1 overflow-auto p-3 text-sm focus:outline-none [&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:text-base [&_h3]:font-semibold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-[hsl(var(--accent))] [&_a]:underline"
+        className={`min-h-48 flex-1 overflow-auto p-3 text-sm focus:outline-none ${PROSE}`}
         dangerouslySetInnerHTML={{ __html: initial }}
         onInput={(e) => onChange(e.currentTarget.innerHTML)}
       />
     </div>
+  );
+}
+
+// Read-only render where links are clickable (open in a new, safe tab).
+function Preview({ html }: { html: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    ref.current?.querySelectorAll("a").forEach((a) => {
+      a.setAttribute("target", "_blank");
+      a.setAttribute("rel", "noopener noreferrer");
+    });
+  }, [html]);
+
+  if (!html.trim()) {
+    return <p className="flex-1 p-6 text-center text-sm text-[hsl(var(--muted))]">Sin documentación todavía.</p>;
+  }
+  return (
+    <div ref={ref} className={`min-h-48 flex-1 overflow-auto p-4 text-sm ${PROSE}`}
+      dangerouslySetInnerHTML={{ __html: html }} />
   );
 }
 
@@ -61,6 +85,7 @@ interface Props {
 
 export function DocModal({ slug, initialNotes, onClose, onSaved }: Props) {
   const [html, setHtml] = useState(initialNotes);
+  const [mode, setMode] = useState<"preview" | "edit">(initialNotes.trim() ? "preview" : "edit");
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -68,7 +93,7 @@ export function DocModal({ slug, initialNotes, onClose, onSaved }: Props) {
     try {
       await api.updateViewNotes(slug, html);
       onSaved();
-      onClose();
+      setMode("preview"); // show the result with clickable links
     } finally {
       setSaving(false);
     }
@@ -80,14 +105,35 @@ export function DocModal({ slug, initialNotes, onClose, onSaved }: Props) {
         onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b px-4 py-3">
           <h2 className="font-semibold">Documentación de la vista</h2>
-          <button className="btn btn-ghost !p-1" onClick={onClose}><X size={18} /></button>
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-lg border p-0.5 text-xs">
+              <button className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "preview" ? "bg-black/10 dark:bg-white/10 font-medium" : ""}`}
+                onClick={() => setMode("preview")}><Eye size={13} /> Vista previa</button>
+              <button className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "edit" ? "bg-black/10 dark:bg-white/10 font-medium" : ""}`}
+                onClick={() => setMode("edit")}><Pencil size={13} /> Editar</button>
+            </div>
+            <button className="btn btn-ghost !p-1" onClick={onClose}><X size={18} /></button>
+          </div>
         </div>
-        <RichTextEditor initial={initialNotes} onChange={setHtml} />
+
+        {mode === "edit"
+          ? <RichTextEditor initial={html} onChange={setHtml} />
+          : <Preview html={html} />}
+
         <div className="flex justify-end gap-2 border-t px-4 py-3">
-          <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-primary" disabled={saving} onClick={save}>
-            {saving ? "Guardando…" : "Guardar"}
-          </button>
+          {mode === "edit" ? (
+            <>
+              <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+              <button className="btn btn-primary" disabled={saving} onClick={save}>
+                {saving ? "Guardando…" : "Guardar"}
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="btn btn-ghost" onClick={onClose}>Cerrar</button>
+              <button className="btn btn-primary" onClick={() => setMode("edit")}><Pencil size={15} /> Editar</button>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -209,6 +209,20 @@ def main() -> int:
         "<ul><li>KYC valida identidad</li><li>Riesgo evalúa el legajo</li></ul>")})
     print("Comentario y documentación de ejemplo agregados a 'Onboarding — Proceso (BPMN)'.")
 
+    # 7) Ciclo de gobierno completo sobre la vista de arquitectura para demostrar
+    #    la fecha/autor del estado: enviar → aprobar (con comentario) → publicar.
+    me = c.get("/users/me").json()
+    c.post("/views/onboarding-arquitectura/submit-review",
+           json={"approvers": [me["id"]], "comment": "Lista para revisión de arquitectura."})
+    ar = c.get("/approvals", params={"status": "pending"}).json()
+    target = next((x for x in ar if x["view_slug"] == "onboarding-arquitectura"), None)
+    if target:
+        c.post(f"/approvals/{target['id']}/approve",
+               json={"comment": "Aprobado: coherente con el objetivo de reducir fraude."})
+        pub = c.post("/views/onboarding-arquitectura/publish")
+        if pub.status_code < 300:
+            print("'Onboarding — Arquitectura' publicada (con fecha, autor y decisión de aprobación).")
+
     print("\nSeed completo. Recargá la app para ver el catálogo, las vistas y las carpetas.")
     return 0
 

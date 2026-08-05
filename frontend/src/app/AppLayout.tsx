@@ -1,6 +1,8 @@
-import { Boxes, CheckSquare, LayoutGrid, Moon, Network, Search, Sparkles, Sun } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Boxes, CheckSquare, LayoutGrid, Moon, Network, Search, Sparkles, Sun, Users } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
+import { api } from "../lib/api";
 import { useTheme } from "./theme";
 
 const NAV = [
@@ -12,6 +14,8 @@ const NAV = [
 
 export function AppLayout() {
   const { theme, toggle } = useTheme();
+  const me = useQuery({ queryKey: ["me"], queryFn: api.getMe });
+  const nav = me.data?.role === "admin" ? [...NAV, { to: "/users", label: "Usuarios", icon: Users }] : NAV;
   return (
     <div className="flex h-full">
       <aside className="surface flex w-56 flex-col border-r">
@@ -20,7 +24,7 @@ export function AppLayout() {
           ArqHub
         </div>
         <nav className="flex flex-col gap-1 px-2">
-          {NAV.map(({ to, label, icon: Icon }) => (
+          {nav.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}

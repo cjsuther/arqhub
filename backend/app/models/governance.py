@@ -24,6 +24,20 @@ class ApprovalRequest(Base, PkMixin, TenantMixin, TimestampMixin):
     teams_message_id: Mapped[str | None] = mapped_column(String(128), default=None)
 
 
+class ApprovalDecision(Base, PkMixin, TenantMixin, TimestampMixin):
+    """One approver's decision on a request — enables multi-approver history (SPEC §11).
+
+    ``created_at`` (TimestampMixin) is the moment the decision was made.
+    """
+
+    __tablename__ = "approval_decisions"
+
+    approval_id: Mapped[str] = mapped_column(String(36), ForeignKey("approval_requests.id"), index=True)
+    approver_id: Mapped[str | None] = mapped_column(String(36), default=None)
+    decision: Mapped[str] = mapped_column(String(16))  # approved|rejected
+    comment: Mapped[str] = mapped_column(String(1024))
+
+
 class AuditLog(Base, PkMixin, TenantMixin):
     """Append-only trace of every mutation, human or IA (SPEC §6, §12)."""
 

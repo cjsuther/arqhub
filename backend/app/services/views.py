@@ -26,17 +26,36 @@ from .exporters import render_view_svg
 from .repository import load_graph, sync_graph
 
 
-def _view_read(v: View) -> ViewRead:
+def _name_of(db, tenant_id: str, user_id: str | None) -> str | None:
+    if not user_id:
+        return None
+    from ..models import User
+    u = db.scalar(select(User).where(User.tenant_id == tenant_id, User.id == user_id))
+    return u.display_name if u else user_id
+
+
+def _view_read(v: View, changed_by_name: str | None = None) -> ViewRead:
     return ViewRead(
         slug=v.slug, name=v.name, lang=v.lang, viewpoint=v.viewpoint,
-        include=v.include or {}, status=v.status, current_version=v.current_version,
-        folder_id=v.folder_id, notes=v.notes,
+        include=v.include or {}, status=v.status,
+        status_changed_at=v.status_changed_at.isoformat() if v.status_changed_at else None,
+        status_changed_by=v.status_changed_by, status_changed_by_name=changed_by_name,
+        current_version=v.current_version, folder_id=v.folder_id, notes=v.notes,
     )
+
+
+def set_view_status(db, view_row: View, status: str, principal: Principal) -> None:
+    """Move a view to a new status, recording who did it and when (SPEC §11)."""
+    from datetime import datetime, timezone
+    view_row.status = status
+    view_row.status_changed_at = datetime.now(timezone.utc)
+    view_row.status_changed_by = principal.user_id
 
 
 def list_views(db, tenant_id: str) -> list[ViewRead]:
     rows = db.scalars(select(View).where(View.tenant_id == tenant_id)).all()
-    return [_view_read(v) for v in rows]
+    names = {r.status_changed_by: _name_of(db, tenant_id, r.status_changed_by) for r in rows}
+    return [_view_read(v, names.get(v.status_changed_by)) for v in rows]
 
 
 def _get_view_row(db, tenant_id: str, slug: str) -> View:
@@ -47,7 +66,8 @@ def _get_view_row(db, tenant_id: str, slug: str) -> View:
 
 
 def get_view(db, tenant_id: str, slug: str) -> ViewRead:
-    return _view_read(_get_view_row(db, tenant_id, slug))
+    v = _get_view_row(db, tenant_id, slug)
+    return _view_read(v, _name_of(db, tenant_id, v.status_changed_by))
 
 
 def _layout_map(db, view_id: str) -> dict:
@@ -76,7 +96,7 @@ def get_view_graph(db, tenant_id: str, slug: str) -> ViewGraphRead:
         for l in db.query(ViewLayout).filter(ViewLayout.view_id == row.id).all()
     ]
     return ViewGraphRead(
-        view=_view_read(row),
+        view=_view_read(row, _name_of(db, tenant_id, row.status_changed_by)),
         elements=[_element_read(el) for el in sub.elements.values()],
         relations=[_relation_read(rel) for rel in sub.relations.values()],
         layout=layout,
@@ -114,6 +134,8 @@ def create_view(db, principal: Principal, payload: ViewCreate) -> ViewRead:
             detail={"errors": [i.model_dump() for i in result.validation.errors]},
         )
     sync_graph(db, principal.tenant_id, result.graph)
+    row = _get_view_row(db, principal.tenant_id, payload.slug)
+    set_view_status(db, row, "draft", principal)
     write_audit(db, principal, action="create", entity="view", entity_id=payload.slug)
     db.commit()
     return get_view(db, principal.tenant_id, payload.slug)
@@ -125,7 +147,7 @@ def set_view_folder(db, principal: Principal, slug: str, folder_id: str | None) 
     write_audit(db, principal, action="move_folder", entity="view", entity_id=slug,
                 payload={"folder_id": folder_id})
     db.commit()
-    return _view_read(row)
+    return _view_read(row, _name_of(db, principal.tenant_id, row.status_changed_by))
 
 
 def update_view(db, principal: Principal, slug: str, payload: ViewUpdate) -> ViewRead:
@@ -143,13 +165,13 @@ def update_view(db, principal: Principal, slug: str, payload: ViewUpdate) -> Vie
             )
         ):
             ar.status = "cancelled"
-        row.status = "draft"
+        set_view_status(db, row, "draft", principal)
 
     for field, value in changes.items():
         setattr(row, field, value)
     write_audit(db, principal, action="update", entity="view", entity_id=slug, payload={"fields": list(changes)})
     db.commit()
-    return _view_read(row)
+    return _view_read(row, _name_of(db, principal.tenant_id, row.status_changed_by))
 
 
 def _view_subgraph(graph: ModelGraph, view: ViewDef) -> ModelGraph:

@@ -20,7 +20,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { api } from "../lib/api";
 import type { Element, Lifecycle } from "../lib/types";
-import { StatusBadge, langLabel } from "../lib/ui";
+import { StatusBadge, formatDate, langLabel } from "../lib/ui";
 import { ArchiMateNode, type NodeStyleOverride } from "./ArchiMateNode";
 import { CanvasContextMenu, type MenuTarget } from "./CanvasContextMenu";
 import { CommentsPanel } from "./CommentsPanel";
@@ -328,7 +328,16 @@ function EditorInner() {
             {vg && `${langLabel(vg.view.lang)} · v${vg.view.current_version}`}
           </div>
         </div>
-        {vg && <StatusBadge value={vg.view.status} />}
+        {vg && (
+          <div className="flex flex-col leading-tight">
+            <StatusBadge value={vg.view.status} />
+            {vg.view.status_changed_at && (
+              <span className="mt-0.5 text-[10px] text-[hsl(var(--muted))]">
+                {vg.view.status_changed_by_name ? `${vg.view.status_changed_by_name} · ` : ""}{formatDate(vg.view.status_changed_at)}
+              </span>
+            )}
+          </div>
+        )}
         {vg && <GovernanceControls view={vg.view} onChanged={refetch} />}
         <div className="ml-auto flex items-center gap-2">
           <button className="btn btn-ghost" onClick={() => setOverlay("versions")} title="Comparar versiones">

@@ -49,3 +49,12 @@ const LANG_LABEL: Record<string, string> = { archimate: "ArchiMate", bpmn: "BPMN
 export function langLabel(lang: string): string {
   return LANG_LABEL[lang] ?? lang;
 }
+
+// Absolute date+time (e.g. "5 ago 2026, 14:30") or "" when the value is missing.
+export function formatDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return isNaN(d.getTime())
+    ? ""
+    : d.toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}

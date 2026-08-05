@@ -6,7 +6,9 @@ relationships use soft delete because they may appear in published views.
 
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
+from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base, PkMixin, TenantMixin, TimestampMixin
@@ -53,6 +55,9 @@ class View(Base, PkMixin, TenantMixin, TimestampMixin):
     viewpoint: Mapped[str | None] = mapped_column(String(64), default=None)
     include: Mapped[dict] = mapped_column(default=dict)  # {elements: [...], relations: auto|[...]}
     status: Mapped[str] = mapped_column(String(16), default="draft")  # draft|in_review|published|deprecated
+    # Who moved the view to its current status, and when (SPEC §11).
+    status_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    status_changed_by: Mapped[str | None] = mapped_column(String(36), default=None)
     current_version: Mapped[int] = mapped_column(Integer, default=0)
     folder_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("folders.id"), default=None, index=True)
     # Rich-text documentation (HTML from the WYSIWYG editor), presentation-side.

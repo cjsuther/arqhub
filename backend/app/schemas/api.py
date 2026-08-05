@@ -106,6 +106,9 @@ class ViewRead(BaseModel):
     viewpoint: str | None = None
     include: dict
     status: str
+    status_changed_at: str | None = None
+    status_changed_by: str | None = None
+    status_changed_by_name: str | None = None
     current_version: int
     folder_id: str | None = None
     notes: str | None = None
@@ -178,12 +181,24 @@ class ViewGraphRead(BaseModel):
     layout: list[LayoutNode]
 
 
-# --- Users (SPEC §7) ---------------------------------------------------------
+# --- Users (SPEC §7, §12) ----------------------------------------------------
 class UserRead(BaseModel):
     id: str
     email: str
     display_name: str
     role: str  # viewer|editor|approver|admin
+    is_entra: bool = False  # provisioned from Entra ID (role re-synced on login)
+
+
+class UserCreate(BaseModel):
+    email: str
+    display_name: str
+    role: str = "viewer"
+
+
+class UserUpdate(BaseModel):
+    display_name: str | None = None
+    role: str | None = None
 
 
 # --- Governance / approvals (SPEC §11) ---------------------------------------
@@ -193,7 +208,15 @@ class SubmitReviewBody(BaseModel):
 
 
 class ResolveBody(BaseModel):
-    comment: str | None = None
+    comment: str = Field(min_length=1)  # mandatory: approve/reject must be justified
+
+
+class ApprovalDecisionRead(BaseModel):
+    approver_id: str | None
+    approver_name: str | None
+    decision: str  # approved|rejected
+    comment: str
+    decided_at: str
 
 
 class ApprovalRead(BaseModel):
@@ -202,12 +225,15 @@ class ApprovalRead(BaseModel):
     view_version: int
     view_status: str  # borrador|in_review|published|deprecated of the target view
     status: str  # pending|approved|rejected|cancelled
+    created_at: str
     requested_by: str | None  # raw user id (kept for compatibility)
     requested_by_name: str | None  # human-readable name for the UI
     approvers: list[str]
     approver_names: list[str]
+    decisions: list[ApprovalDecisionRead] = []
     resolved_by: str | None
     resolved_by_name: str | None
+    resolved_at: str | None = None
     comment: str | None
 
 

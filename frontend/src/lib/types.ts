@@ -42,6 +42,9 @@ export interface View {
   viewpoint: string | null;
   include: { elements: string[]; relations: string[] | "auto" };
   status: ViewStatus;
+  status_changed_at: string | null;
+  status_changed_by: string | null;
+  status_changed_by_name: string | null;
   current_version: number;
   folder_id: string | null;
   notes: string | null;
@@ -112,11 +115,14 @@ export interface ViewGraph {
   layout: LayoutNode[];
 }
 
+export type Role = "viewer" | "editor" | "approver" | "admin";
+
 export interface User {
   id: string;
   email: string;
   display_name: string;
-  role: "viewer" | "editor" | "approver" | "admin";
+  role: Role;
+  is_entra?: boolean;
 }
 
 export interface Finding {
@@ -127,17 +133,28 @@ export interface Finding {
   suggestion: string | null;
 }
 
+export interface ApprovalDecision {
+  approver_id: string | null;
+  approver_name: string | null;
+  decision: "approved" | "rejected";
+  comment: string;
+  decided_at: string;
+}
+
 export interface Approval {
   id: string;
   view_slug: string;
   view_version: number;
   view_status: ViewStatus;
   status: "pending" | "approved" | "rejected" | "cancelled";
+  created_at: string;
   requested_by: string | null;
   requested_by_name: string | null;
   approvers: string[];
   approver_names: string[];
+  decisions: ApprovalDecision[];
   resolved_by: string | null;
   resolved_by_name: string | null;
+  resolved_at: string | null;
   comment: string | null;
 }

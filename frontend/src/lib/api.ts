@@ -114,6 +114,12 @@ export const api = {
   analyze: () => http<Finding[]>("/analysis"),
 
   listUsers: (role?: string) => http<User[]>(`/users${qs({ role })}`),
+  getMe: () => http<User>("/users/me"),
+  createUser: (body: { email: string; display_name: string; role: string }) =>
+    http<User>("/users", { method: "POST", body: JSON.stringify(body) }),
+  updateUser: (id: string, body: { role?: string; display_name?: string }) =>
+    http<User>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteUser: (id: string) => http<void>(`/users/${id}`, { method: "DELETE" }),
 
   // Folders (SPEC §8.1)
   listFolders: (scope: "element" | "view") => http<Folder[]>(`/folders${qs({ scope })}`),

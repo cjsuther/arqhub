@@ -10,6 +10,7 @@ import { AnalysisPage } from "./features/analysis/AnalysisPage";
 import { ApprovalsPage } from "./features/approvals/ApprovalsPage";
 import { CatalogPage } from "./features/catalog/CatalogPage";
 import { ElementDetailPage } from "./features/catalog/ElementDetailPage";
+import { UsersPage } from "./features/users/UsersPage";
 import { ViewsPage } from "./features/views/ViewsPage";
 
 const queryClient = new QueryClient({
@@ -27,6 +28,7 @@ const router = createBrowserRouter([
       { path: "views", element: <ViewsPage /> },
       { path: "approvals", element: <ApprovalsPage /> },
       { path: "analysis", element: <AnalysisPage /> },
+      { path: "users", element: <UsersPage /> },
     ],
   },
   // Editor is full-screen (its own chrome), outside the app shell.

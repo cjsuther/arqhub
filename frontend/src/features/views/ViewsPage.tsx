@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import { ALL, DND_ITEM, FolderTree, UNFILED, descendants } from "../../components/FolderTree";
 import { api } from "../../lib/api";
 import type { View } from "../../lib/types";
-import { StatusBadge, langLabel } from "../../lib/ui";
+import { StatusBadge, formatDate, langLabel } from "../../lib/ui";
 import { NewViewModal } from "./NewViewModal";
 
 export function ViewsPage() {
@@ -58,6 +58,11 @@ export function ViewsPage() {
           <span>v{v.current_version}</span>
           <span>· {v.include.elements.length} elementos</span>
         </div>
+        {v.status_changed_at && (
+          <div className="mt-1 text-[11px] text-[hsl(var(--muted))]">
+            {v.status_changed_by_name ? `${v.status_changed_by_name} · ` : ""}{formatDate(v.status_changed_at)}
+          </div>
+        )}
       </Link>
     );
   }

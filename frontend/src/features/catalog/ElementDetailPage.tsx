@@ -81,7 +81,9 @@ export function ElementDetailPage() {
               {inViews.map((v) => (
                 <li key={v.slug} className="flex items-center gap-2 text-sm">
                   <span className="badge bg-black/5 dark:bg-white/10">{langLabel(v.lang)}</span>
-                  <span>{v.name}</span>
+                  <Link to={`/views/${v.slug}/edit`} className="text-[hsl(var(--accent))] hover:underline">
+                    {v.name}
+                  </Link>
                   <StatusBadge value={v.status} />
                 </li>
               ))}
