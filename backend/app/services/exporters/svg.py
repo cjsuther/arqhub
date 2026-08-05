@@ -114,6 +114,8 @@ def render_view_svg(graph: ModelGraph, view, layout: dict | None = None) -> str:
         return _grid_svg(elements, edges)
 
     pool_slugs = {l.get("parent") for l in layout.values() if l.get("parent")}
+    # child -> parent, to hide the containment/membership edge shown by nesting.
+    nested_parent = {slug: l.get("parent") for slug, l in layout.items() if l.get("parent")}
 
     # Absolute rects: pools at their own coords, members offset by their pool.
     rect: dict[str, tuple[float, float, float, float]] = {}
@@ -155,9 +157,11 @@ def render_view_svg(graph: ModelGraph, view, layout: dict | None = None) -> str:
             x, y, w, h = rect[el.slug]
             parts.append(_pool(el, x + dx, y + dy, w, h))
 
+    nestable = {"composition", "aggregation", "assignment"}
     for rel in edges:
-        if rel.kind == "assignment" and rel.from_ in pool_slugs:
-            continue  # nesting represents membership
+        # A containment/membership relation drawn as nesting gets no edge.
+        if rel.kind in nestable and nested_parent.get(rel.to) == rel.from_:
+            continue
         if rel.from_ not in rect or rel.to not in rect:
             continue
         x1, y1, w1, h1 = rect[rel.from_]

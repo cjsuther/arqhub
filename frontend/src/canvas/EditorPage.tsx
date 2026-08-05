@@ -38,6 +38,7 @@ import { PropertiesPanel } from "./PropertiesPanel";
 import { RelationEdge, type RelEdge } from "./RelationEdge";
 import { RelationPicker } from "./RelationPicker";
 import { buildPoolNodes, hasPools, poolKind, type CanvasNode } from "./poolLayout";
+import { NESTABLE, NEST_HEADER, nestNodes, nestingFromLayout, validParents } from "./nesting";
 import { NODE_H, NODE_W, layoutNodes } from "./layout";
 
 type CanvasSnapshot = { nodes: CanvasNode[]; edgeStyles: Record<string, { stroke?: string }> };
@@ -109,9 +110,12 @@ function EditorInner() {
     }
     setEdgeStyles(loadedEdgeStyles);
 
+    // Containment nesting (composition/aggregation/assignment shown as child-in-parent).
+    const poolMode = vg.view.lang === "bpmn" && hasPools(vg, reg);
+    const parentMap = poolMode ? {} : nestingFromLayout(vg);
+
     (async () => {
-      // BPMN views with pools/lanes → nested swimlane layout (SPEC §8.2, §16).
-      if (vg.view.lang === "bpmn" && hasPools(vg, reg)) {
+      if (poolMode) {
         if (cancelled) return;
         setNodes(buildPoolNodes(vg, reg));
       } else {
@@ -128,28 +132,15 @@ function EditorInner() {
           for (const e of missing) positions[e.slug] = elk[e.slug] ?? { x: 0, y: 0 };
         }
         if (cancelled) return;
-
-        setNodes(
-          vg.elements.map((e) => ({
-            id: e.slug,
-            type: "archimate",
-            position: positions[e.slug],
-            data: {
-              element: e,
-              layer: reg.kinds[e.kind]?.layer ?? "application",
-              lang: vg.view.lang,
-              projection: reg.kinds[e.kind]?.mappings[vg.view.lang] ?? null,
-              style: nodeStyleMap[e.slug],
-            },
-          })),
-        );
+        setNodes(nestNodes(vg, reg, positions, nodeStyleMap, parentMap));
       }
-      // In pool mode, the pool→member assignment is shown by nesting, not an edge.
+      // Relations shown by nesting (pool membership or containment) don't get an edge.
       const poolIdSet = new Set(vg.elements.filter((e) => poolKind(reg, e.kind)).map((e) => e.slug));
       const inPoolMode = vg.view.lang === "bpmn" && poolIdSet.size > 0;
-      const visibleRelations = inPoolMode
-        ? vg.relations.filter((r) => !(r.kind === "assignment" && poolIdSet.has(r.from)))
-        : vg.relations;
+      const hiddenByNesting = (r: (typeof vg.relations)[number]) =>
+        (inPoolMode && r.kind === "assignment" && poolIdSet.has(r.from)) ||
+        (NESTABLE.has(r.kind) && parentMap[r.to] === r.from);
+      const visibleRelations = vg.relations.filter((r) => !hiddenByNesting(r));
 
       // Count/index edges that share the same (unordered) node pair so the edge
       // component can fan out parallel relations instead of overlapping them.
@@ -259,7 +250,43 @@ function EditorInner() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Drag a node into/out of a pool → (un)assign it (model-first) and re-nest.
+  // Persist a change of container: set the dragged node's parent (or clear it),
+  // converting between absolute and parent-relative coordinates.
+  const nestNode = useCallback(
+    async (node: Node, parentId: string | null) => {
+      const absOf = (id: string) =>
+        (rf.getInternalNode(id)?.internals?.positionAbsolute as { x: number; y: number } | undefined);
+      const childAbs = absOf(node.id) ?? node.position;
+      const rows = nodes.map((n) => {
+        const w = (typeof n.width === "number" && n.width) || n.measured?.width || NODE_W;
+        const h = (typeof n.height === "number" && n.height) || n.measured?.height || NODE_H;
+        const style = ((n.data as { style?: NodeStyleOverride })?.style ?? {}) as Record<string, unknown>;
+        let { x, y } = n.position;
+        let parent = n.parentId ?? null;
+        if (n.id === node.id) {
+          parent = parentId;
+          if (parentId) {
+            const p = absOf(parentId) ?? { x: 0, y: 0 };
+            x = childAbs.x - p.x;
+            y = Math.max(NEST_HEADER, childAbs.y - p.y);
+          } else {
+            x = childAbs.x;
+            y = childAbs.y;
+          }
+        }
+        return { element: n.id, x, y, w, h, parent, style };
+      });
+      const edgeRows = Object.entries(edgeStyles)
+        .filter(([, st]) => st?.stroke)
+        .map(([relSlug, st]) => ({ element: relSlug, x: 0, y: 0, w: 0, h: 0, parent: null, style: st as Record<string, unknown> }));
+      delete posRef.current[node.id]; // let the persisted layout win on rebuild
+      await api.putLayout(slug, [...rows, ...edgeRows]);
+      refetch();
+    },
+    [rf, nodes, edgeStyles, slug, refetch],
+  );
+
+  // Drag a node into/out of a container (or BPMN pool) → (un)nest it.
   const onNodeDragStop = useCallback(
     async (_: unknown, node: Node) => {
       const reg = registry.data;
@@ -268,24 +295,31 @@ function EditorInner() {
         persistLayout();
         return;
       }
-      const poolIds = new Set(vgd.elements.filter((e) => poolKind(reg, e.kind)).map((e) => e.slug));
-      const targetPool = rf.getIntersectingNodes(node).find((n) => n.type === "pool")?.id ?? null;
-      const currentParent = node.parentId ?? null;
-      if (targetPool === currentParent) {
-        persistLayout();
+      const current = node.parentId ?? null;
+
+      // BPMN pool view: membership is the assignment relation (model-first).
+      if (vgd.view.lang === "bpmn" && hasPools(vgd, reg)) {
+        const poolIds = new Set(vgd.elements.filter((e) => poolKind(reg, e.kind)).map((e) => e.slug));
+        const targetPool = rf.getIntersectingNodes(node).find((n) => n.type === "pool")?.id ?? null;
+        if (targetPool === current) { persistLayout(); return; }
+        const toRemove = vgd.relations.filter(
+          (r) => r.kind === "assignment" && r.to === node.id && poolIds.has(r.from),
+        );
+        for (const r of toRemove) await api.deleteRelationship(r.slug).catch(() => {});
+        if (targetPool) {
+          await api.createRelationship({ from: targetPool, to: node.id, kind: "assignment" }).catch(() => {});
+        }
+        refetch();
         return;
       }
-      // Remove any existing pool→node assignment, then add the new one.
-      const toRemove = vgd.relations.filter(
-        (r) => r.kind === "assignment" && r.to === node.id && poolIds.has(r.from),
-      );
-      for (const r of toRemove) await api.deleteRelationship(r.slug).catch(() => {});
-      if (targetPool) {
-        await api.createRelationship({ from: targetPool, to: node.id, kind: "assignment" }).catch(() => {});
-      }
-      refetch();
+
+      // ArchiMate/UML: nest into a container it has a containment relation with.
+      const parents = validParents(vgd, node.id);
+      const target = rf.getIntersectingNodes(node).find((n) => parents.has(n.id) && n.id !== node.id)?.id ?? null;
+      if (target === current) { persistLayout(); return; }
+      await nestNode(node, target);
     },
-    [rf, registry.data, viewGraph.data, persistLayout, refetch],
+    [rf, registry.data, viewGraph.data, persistLayout, refetch, nestNode],
   );
 
   const onConnect = useCallback((c: Connection) => {

@@ -20,6 +20,7 @@ export interface ArchiNodeData extends Record<string, unknown> {
   lang: Lang;
   projection: string | null; // concrete type in the view's language (registry)
   style?: NodeStyleOverride;
+  container?: boolean; // renders as a container that holds nested children
 }
 
 // A small badge marking an element that drills down into another view; click it
@@ -68,10 +69,33 @@ const BPMN = { bg: "#eef2ff", border: "#6366f1", text: "#312e81" };
 const UML = { bg: "#ffffff", border: "#475569", text: "#1e293b" };
 
 export function ArchiMateNode(props: NodeProps<ArchiNode>) {
-  const { lang } = props.data;
+  const { lang, container } = props.data;
+  if (container) return <ContainerShape {...props} />;
   if (lang === "bpmn") return <BpmnShape {...props} />;
   if (lang === "uml") return <UmlShape {...props} />;
   return <ArchimateShape {...props} />;
+}
+
+// A node that holds nested children: header band + open body (children on top).
+function ContainerShape({ data, selected }: NodeProps<ArchiNode>) {
+  const { element, layer } = data;
+  const s = layerStyle(layer);
+  const ov = data.style ?? {};
+  const Icon = kindIcon(element.kind);
+  return (
+    <div
+      className="relative h-full w-full rounded-md border-2 shadow-sm"
+      style={{ background: ov.background ?? "transparent", borderColor: selected ? "#1e293b" : ov.borderColor ?? s.border }}
+    >
+      <Handles />
+      <NavBadge element={element} />
+      <div className="flex items-center gap-1.5 rounded-t px-2 py-1" style={{ background: s.bg, color: s.text }}>
+        <Icon size={12} className="shrink-0 opacity-70" />
+        <span className="truncate text-[12px] font-semibold">{element.name}</span>
+        <span className="ml-auto shrink-0 text-[9px] uppercase tracking-wide opacity-60">{element.kind}</span>
+      </div>
+    </div>
+  );
 }
 
 // --- ArchiMate: rectangle coloured by layer, type icon top-right --------------
