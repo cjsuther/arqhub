@@ -23,8 +23,8 @@ export function ExportMenu({ slug }: { slug: string }) {
 
   return (
     <div ref={ref} className="relative">
-      <button className="btn btn-ghost" onClick={() => setOpen((v) => !v)}>
-        <Download size={15} /> Exportar <ChevronDown size={13} />
+      <button className="btn btn-ghost" onClick={() => setOpen((v) => !v)} title="Exportar">
+        <Download size={15} /> <span className="hidden lg:inline">Exportar</span> <ChevronDown size={13} />
       </button>
       {open && (
         <div className="surface absolute right-0 z-20 mt-1 w-64 rounded-md border py-1 shadow-lg">

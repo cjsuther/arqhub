@@ -414,43 +414,43 @@ function EditorInner() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="surface flex items-center gap-3 border-b px-4 py-2">
-        <Link to="/views" className="btn btn-ghost"><ArrowLeft size={16} /></Link>
-        <div className="min-w-0">
+      <header className="surface flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b px-3 py-2">
+        <Link to="/views" className="btn btn-ghost !px-2"><ArrowLeft size={16} /></Link>
+        <div className="min-w-0 max-w-[45vw] sm:max-w-none">
           <div className="truncate font-semibold">{vg?.view.name ?? "…"}</div>
-          <div className="text-xs text-[hsl(var(--muted))]">
+          <div className="truncate text-xs text-[hsl(var(--muted))]">
             {vg && `${langLabel(vg.view.lang)} · v${vg.view.current_version}`}
           </div>
         </div>
         {vg && (
           <FolderSelect scope="view" value={vg.view.folder_id} onChange={moveViewFolder}
-            className="input !py-1 text-xs max-w-40" />
+            className="input hidden max-w-40 !py-1 text-xs md:block" />
         )}
         {vg && (
           <div className="flex flex-col leading-tight">
             <StatusBadge value={vg.view.status} />
             {vg.view.status_changed_at && (
-              <span className="mt-0.5 text-[10px] text-[hsl(var(--muted))]">
+              <span className="mt-0.5 hidden text-[10px] text-[hsl(var(--muted))] lg:block">
                 {vg.view.status_changed_by_name ? `${vg.view.status_changed_by_name} · ` : ""}{formatDate(vg.view.status_changed_at)}
               </span>
             )}
           </div>
         )}
         {vg && <GovernanceControls view={vg.view} onChanged={refetch} />}
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
           {vg?.view.status === "draft" && (
             <button className="btn btn-ghost" onClick={() => setShowShare(true)} title="Compartir borrador">
-              <Share2 size={15} /> Compartir
+              <Share2 size={15} /> <span className="hidden lg:inline">Compartir</span>
             </button>
           )}
           <button className="btn btn-ghost" onClick={() => setOverlay("versions")} title="Comparar versiones">
-            <History size={15} /> Versiones
+            <History size={15} /> <span className="hidden lg:inline">Versiones</span>
           </button>
           <button className="btn btn-ghost" onClick={() => setOverlay("doc")} title="Documentación (texto enriquecido)">
-            <FileText size={15} /> Documentación
+            <FileText size={15} /> <span className="hidden lg:inline">Documentación</span>
           </button>
           <button className="btn btn-ghost relative" onClick={() => setShowComments((s) => !s)} title="Comentarios">
-            <MessageSquare size={15} /> Comentarios
+            <MessageSquare size={15} /> <span className="hidden lg:inline">Comentarios</span>
             {!!commentCount.data && (
               <span className="ml-0.5 rounded-full bg-[hsl(var(--accent))] px-1.5 text-[10px] text-white">{commentCount.data}</span>
             )}
@@ -464,11 +464,13 @@ function EditorInner() {
           </div>
           <button className={`btn ${snap ? "btn-primary" : "btn-ghost"}`} onClick={() => setSnap((s) => !s)}
             title="Ajustar a la grilla">
-            <Magnet size={15} /> Grilla
+            <Magnet size={15} /> <span className="hidden lg:inline">Grilla</span>
           </button>
-          <button className="btn btn-ghost" onClick={organize}><LayoutGrid size={15} /> Organizar</button>
-          <button className="btn btn-primary" onClick={persistLayout}>
-            <Save size={15} /> {saved ? "Guardado" : "Guardar layout"}
+          <button className="btn btn-ghost" onClick={organize} title="Organizar (auto-layout)">
+            <LayoutGrid size={15} /> <span className="hidden lg:inline">Organizar</span>
+          </button>
+          <button className="btn btn-primary" onClick={persistLayout} title="Guardar layout">
+            <Save size={15} /> <span className="hidden sm:inline">{saved ? "Guardado" : "Guardar layout"}</span>
           </button>
         </div>
       </header>

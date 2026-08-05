@@ -58,8 +58,8 @@ export function GovernanceControls({ view, onChanged }: { view: View; onChanged:
       {error && <span className="text-xs text-red-500">{error}</span>}
 
       {view.status === "draft" && (
-        <button className="btn btn-ghost" disabled={busy} onClick={() => setReviewing(true)}>
-          <Send size={15} /> Enviar a revisión
+        <button className="btn btn-ghost" disabled={busy} onClick={() => setReviewing(true)} title="Enviar a revisión">
+          <Send size={15} /> <span className="hidden lg:inline">Enviar a revisión</span>
         </button>
       )}
       {reviewing && (
@@ -69,26 +69,26 @@ export function GovernanceControls({ view, onChanged }: { view: View; onChanged:
 
       {view.status === "in_review" && pending && canApprove && (
         <>
-          <button className="btn btn-ghost" disabled={busy} onClick={() => decideWithComment("approve")}>
-            <Check size={15} /> Aprobar
+          <button className="btn btn-ghost" disabled={busy} onClick={() => decideWithComment("approve")} title="Aprobar">
+            <Check size={15} /> <span className="hidden lg:inline">Aprobar</span>
           </button>
-          <button className="btn btn-ghost" disabled={busy} onClick={() => decideWithComment("reject")}>
-            <X size={15} /> Rechazar
+          <button className="btn btn-ghost" disabled={busy} onClick={() => decideWithComment("reject")} title="Rechazar">
+            <X size={15} /> <span className="hidden lg:inline">Rechazar</span>
           </button>
         </>
       )}
       {view.status === "in_review" && pending && !canApprove && (
-        <span className="text-xs text-[hsl(var(--muted))]">En revisión — requiere un aprobador</span>
+        <span className="hidden text-xs text-[hsl(var(--muted))] lg:inline">En revisión — requiere un aprobador</span>
       )}
       {view.status === "in_review" && approved && (
-        <button className="btn btn-primary" disabled={busy} onClick={() => publish.mutate()}>
-          <Rocket size={15} /> Publicar
+        <button className="btn btn-primary" disabled={busy} onClick={() => publish.mutate()} title="Publicar">
+          <Rocket size={15} /> <span className="hidden lg:inline">Publicar</span>
         </button>
       )}
 
       {view.status === "published" && (
-        <button className="btn btn-ghost" disabled={busy} onClick={() => deprecate.mutate()}>
-          <Archive size={15} /> Deprecar
+        <button className="btn btn-ghost" disabled={busy} onClick={() => deprecate.mutate()} title="Deprecar">
+          <Archive size={15} /> <span className="hidden lg:inline">Deprecar</span>
         </button>
       )}
     </div>
