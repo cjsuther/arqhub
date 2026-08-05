@@ -12,12 +12,15 @@ Uso (con el backend corriendo en :8000):
 
 from __future__ import annotations
 
+import os
 import sys
 
 import httpx
 import yaml
 
-BASE = "http://127.0.0.1:8000/api/v1"
+# Override with ARQHUB_SEED_BASE_URL to seed a remote/Docker stack
+# (e.g. http://api:8000/api/v1 from within docker compose).
+BASE = os.environ.get("ARQHUB_SEED_BASE_URL", "http://127.0.0.1:8000/api/v1")
 
 # --- Modelo: elementos (clave = slug) --------------------------------------
 ELEMENTS: dict[str, dict] = {

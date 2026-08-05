@@ -1,56 +1,88 @@
-# ArqHub dev stack (SPEC §3, §13). Frontend and MCP server join in later phases.
+# ArqHub full stack on Docker (SPEC §3, §13): PostgreSQL + Redis + API + worker + web.
+#
+#   docker compose up --build                 # start the stack (Postgres-backed)
+#   docker compose --profile seed run --rm seed   # load demo data into the running stack
+#   docker compose down            (add -v to also drop the database volume)
+#
+# The API container runs `alembic upgrade head` before serving, so the Postgres
+# schema is created/migrated on start. Credentials default to arqhub/arqhub and can
+# be overridden via a root .env (see .env.example).
 services:
   db:
     image: postgres:16
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: arqhub
-      POSTGRES_PASSWORD: arqhub
-      POSTGRES_DB: arqhub
+      POSTGRES_USER: ${POSTGRES_USER:-arqhub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-arqhub}
+      POSTGRES_DB: ${POSTGRES_DB:-arqhub}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U arqhub"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-arqhub} -d ${POSTGRES_DB:-arqhub}"]
       interval: 5s
       timeout: 3s
       retries: 10
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports:
       - "6379:6379"
 
   api:
     build: ./backend
+    restart: unless-stopped
     environment:
-      ARQHUB_DATABASE_URL: postgresql+psycopg://arqhub:arqhub@db:5432/arqhub
+      ARQHUB_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-arqhub}:${POSTGRES_PASSWORD:-arqhub}@db:5432/${POSTGRES_DB:-arqhub}
       ARQHUB_REDIS_URL: redis://redis:6379
-      ARQHUB_DEV_AUTH: "true"
+      ARQHUB_DEV_AUTH: "${ARQHUB_DEV_AUTH:-true}"
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
 
   worker:
     build: ./backend
+    restart: unless-stopped
     command: arq app.workers.main.WorkerSettings
     environment:
-      ARQHUB_DATABASE_URL: postgresql+psycopg://arqhub:arqhub@db:5432/arqhub
+      ARQHUB_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-arqhub}:${POSTGRES_PASSWORD:-arqhub}@db:5432/${POSTGRES_DB:-arqhub}
       ARQHUB_REDIS_URL: redis://redis:6379
     depends_on:
-      db:
-        condition: service_healthy
       redis:
         condition: service_started
+      api:
+        condition: service_healthy  # wait until the API has migrated the schema
 
   web:
     build: ./frontend
+    restart: unless-stopped
     ports:
       - "5173:80"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+
+  # One-shot demo seeding against the running API (opt-in profile):
+  #   docker compose --profile seed run --rm seed
+  seed:
+    build: ./backend
+    profiles: ["seed"]
+    command: python scripts/seed_demo.py
+    environment:
+      ARQHUB_SEED_BASE_URL: http://api:8000/api/v1
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
   db_data:
