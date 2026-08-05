@@ -14,8 +14,8 @@ import {
   type Connection,
   type Node,
 } from "@xyflow/react";
-import { ArrowLeft, FileText, History, LayoutGrid, MessageSquare, Redo2, Save, Undo2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, FileText, History, LayoutGrid, Magnet, MessageSquare, Redo2, Save, Undo2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { api } from "../lib/api";
@@ -30,7 +30,7 @@ import { NAV_PROP, linkedView } from "./drilldown";
 import { ExportMenu } from "./ExportMenu";
 import { GovernanceControls } from "./GovernanceControls";
 import { EdgeMarkers } from "./markers";
-import { Palette } from "./Palette";
+import { CATALOG_DND, Palette } from "./Palette";
 import { PoolNodeView } from "./PoolNode";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { RelationEdge, type RelEdge } from "./RelationEdge";
@@ -39,6 +39,8 @@ import { buildPoolNodes, hasPools, poolKind, type CanvasNode } from "./poolLayou
 import { NODE_H, NODE_W, layoutNodes } from "./layout";
 
 type CanvasSnapshot = { nodes: CanvasNode[]; edgeStyles: Record<string, { stroke?: string }> };
+
+const GRID = 18; // snap grid + background dot spacing
 
 function EditorInner() {
   const { slug = "" } = useParams();
@@ -57,6 +59,7 @@ function EditorInner() {
   const [menu, setMenu] = useState<{ x: number; y: number; target: MenuTarget } | null>(null);
   const [overlay, setOverlay] = useState<"versions" | "doc" | null>(null);
   const [showComments, setShowComments] = useState(false);
+  const [snap, setSnap] = useState(false);
   // Per-view edge colour overrides (persisted in the view layout, keyed by relation slug).
   const [edgeStyles, setEdgeStyles] = useState<Record<string, { stroke?: string }>>({});
   const rf = useReactFlow();
@@ -286,6 +289,28 @@ function EditorInner() {
     if (c.source && c.target && c.source !== c.target) setPending({ from: c.source, to: c.target });
   }, []);
 
+  // Drag & drop a catalog element from the palette onto the canvas at the cursor.
+  const onDragOver = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }, []);
+  const onDrop = useCallback(
+    async (e: DragEvent) => {
+      e.preventDefault();
+      const elSlug = e.dataTransfer.getData(CATALOG_DND);
+      const vgd = viewGraph.data;
+      if (!elSlug || !vgd || vgd.view.include.elements.includes(elSlug)) return;
+      const p = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      // Seed the position so the rebuild places it where dropped (not via auto-layout).
+      posRef.current[elSlug] = snap
+        ? { x: Math.round(p.x / GRID) * GRID, y: Math.round(p.y / GRID) * GRID }
+        : p;
+      await api.addElementsToView(slug, vgd.view, [elSlug]);
+      refetch();
+    },
+    [rf, viewGraph.data, slug, snap, refetch],
+  );
+
   async function pickRelation(kind: string) {
     if (!pending) return;
     try {
@@ -419,6 +444,10 @@ function EditorInner() {
             <button className="btn btn-ghost !px-2" onClick={redo} disabled={future.current.length === 0}
               title="Rehacer (Ctrl+Shift+Z)"><Redo2 size={15} /></button>
           </div>
+          <button className={`btn ${snap ? "btn-primary" : "btn-ghost"}`} onClick={() => setSnap((s) => !s)}
+            title="Ajustar a la grilla">
+            <Magnet size={15} /> Grilla
+          </button>
           <button className="btn btn-ghost" onClick={organize}><LayoutGrid size={15} /> Organizar</button>
           <button className="btn btn-primary" onClick={persistLayout}>
             <Save size={15} /> {saved ? "Guardado" : "Guardar layout"}
@@ -428,7 +457,7 @@ function EditorInner() {
 
       <div className="flex min-h-0 flex-1">
         {vg && <Palette view={vg.view} registry={registry.data} inView={inView} onChanged={refetch} />}
-        <div className="relative min-w-0 flex-1">
+        <div className="relative min-w-0 flex-1" onDrop={onDrop} onDragOver={onDragOver}>
           <EdgeMarkers />
           <ReactFlow<CanvasNode, RelEdge>
             nodes={nodes}
@@ -455,10 +484,12 @@ function EditorInner() {
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             connectionMode={ConnectionMode.Loose}
+            snapToGrid={snap}
+            snapGrid={[GRID, GRID]}
             fitView
             proOptions={{ hideAttribution: true }}
           >
-            <Background color="#cbd5e1" gap={18} />
+            <Background color="#cbd5e1" gap={GRID} />
             <Controls />
             <MiniMap pannable zoomable className="!bg-white" />
           </ReactFlow>

@@ -6,6 +6,9 @@ import { api } from "../lib/api";
 import type { Registry, View } from "../lib/types";
 import { KindBadge } from "../lib/ui";
 
+// DataTransfer key for dragging a catalog element onto the canvas.
+export const CATALOG_DND = "application/arqhub-catalog";
+
 interface Props {
   view: View;
   registry?: Registry;
@@ -56,11 +59,13 @@ function CatalogTab({ view, registry, inView, onChanged }: Props) {
         <input className="input w-full pl-7 text-sm" placeholder="Buscar elemento…"
           value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
-      <p className="text-xs text-[hsl(var(--muted))]">Reutilizá primero: arrastrá elementos del modelo.</p>
+      <p className="text-xs text-[hsl(var(--muted))]">Arrastrá al lienzo para ubicarlo, o hacé clic para auto-posicionarlo.</p>
       <div className="min-h-0 flex-1 space-y-1 overflow-auto">
         {candidates.map((e) => (
           <button key={e.slug} onClick={() => add(e.slug)}
-            className="flex w-full items-center justify-between gap-1 rounded border border-transparent px-2 py-1.5 text-left text-sm hover:surface hover:border-[hsl(var(--border))]">
+            draggable
+            onDragStart={(ev) => ev.dataTransfer.setData(CATALOG_DND, e.slug)}
+            className="flex w-full cursor-grab items-center justify-between gap-1 rounded border border-transparent px-2 py-1.5 text-left text-sm hover:surface hover:border-[hsl(var(--border))] active:cursor-grabbing">
             <span className="truncate">{e.name}</span>
             <KindBadge registry={registry} kind={e.kind} />
           </button>
