@@ -14,7 +14,7 @@ import {
   type Connection,
   type Node,
 } from "@xyflow/react";
-import { ArrowLeft, FileText, History, LayoutGrid, MessageSquare, Save } from "lucide-react";
+import { ArrowLeft, FileText, History, LayoutGrid, MessageSquare, Redo2, Save, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -37,6 +37,8 @@ import { RelationEdge, type RelEdge } from "./RelationEdge";
 import { RelationPicker } from "./RelationPicker";
 import { buildPoolNodes, hasPools, poolKind, type CanvasNode } from "./poolLayout";
 import { NODE_H, NODE_W, layoutNodes } from "./layout";
+
+type CanvasSnapshot = { nodes: CanvasNode[]; edgeStyles: Record<string, { stroke?: string }> };
 
 function EditorInner() {
   const { slug = "" } = useParams();
@@ -83,6 +85,8 @@ function EditorInner() {
     const reg = registry.data;
     if (!vg || !reg) return;
     let cancelled = false;
+    past.current = []; // model reloaded → presentation history no longer applies
+    future.current = [];
 
     // Presentation overrides saved in the layout: node colours (keyed by element
     // slug) and edge colours (keyed by relation slug, x/y/w/h = 0).
@@ -195,6 +199,60 @@ function EditorInner() {
   );
   const persistLayout = useCallback(() => save(), [save]);
 
+  // --- Undo/redo of canvas presentation (positions + colours) ---------------
+  const past = useRef<CanvasSnapshot[]>([]);
+  const future = useRef<CanvasSnapshot[]>([]);
+  const [, bumpHist] = useState(0);
+  const tickHist = () => bumpHist((t) => t + 1);
+
+  const snapshot = (): CanvasSnapshot => ({
+    nodes: nodes.map((n) => ({ ...n, position: { ...n.position }, data: { ...(n.data as object) } }) as CanvasNode),
+    edgeStyles: { ...edgeStyles },
+  });
+  const pushHistory = () => {
+    past.current.push(snapshot());
+    if (past.current.length > 50) past.current.shift();
+    future.current = [];
+    tickHist();
+  };
+  const applySnapshot = (s: CanvasSnapshot) => {
+    setNodes(s.nodes);
+    setEdgeStyles(s.edgeStyles);
+    setEdges((es) => es.map((e) => ({ ...e, data: { ...e.data!, stroke: s.edgeStyles[e.id]?.stroke } })));
+    save(s.nodes, s.edgeStyles);
+  };
+  const undo = () => {
+    if (!past.current.length) return;
+    future.current.push(snapshot());
+    applySnapshot(past.current.pop()!);
+    tickHist();
+  };
+  const redo = () => {
+    if (!future.current.length) return;
+    past.current.push(snapshot());
+    applySnapshot(future.current.pop()!);
+    tickHist();
+  };
+  const histRef = useRef({ undo, redo });
+  histRef.current = { undo, redo };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        e.shiftKey ? histRef.current.redo() : histRef.current.undo();
+      } else if (mod && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        histRef.current.redo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   // Drag a node into/out of a pool → (un)assign it (model-first) and re-nest.
   const onNodeDragStop = useCallback(
     async (_: unknown, node: Node) => {
@@ -244,6 +302,7 @@ function EditorInner() {
   }
 
   function applyNodeStyle(id: string, patch: NodeStyleOverride) {
+    pushHistory();
     const next = nodes.map((n) =>
       n.id === id
         ? ({ ...n, data: { ...n.data, style: { ...(n.data as { style?: NodeStyleOverride }).style, ...patch } } } as CanvasNode)
@@ -279,6 +338,7 @@ function EditorInner() {
   }
 
   function setEdgeColor(relSlug: string, color: string | null) {
+    pushHistory();
     const next = { ...edgeStyles };
     if (color) next[relSlug] = { stroke: color };
     else delete next[relSlug];
@@ -353,6 +413,12 @@ function EditorInner() {
             )}
           </button>
           <ExportMenu slug={slug} />
+          <div className="flex">
+            <button className="btn btn-ghost !px-2" onClick={undo} disabled={past.current.length === 0}
+              title="Deshacer (Ctrl+Z)"><Undo2 size={15} /></button>
+            <button className="btn btn-ghost !px-2" onClick={redo} disabled={future.current.length === 0}
+              title="Rehacer (Ctrl+Shift+Z)"><Redo2 size={15} /></button>
+          </div>
           <button className="btn btn-ghost" onClick={organize}><LayoutGrid size={15} /> Organizar</button>
           <button className="btn btn-primary" onClick={persistLayout}>
             <Save size={15} /> {saved ? "Guardado" : "Guardar layout"}
@@ -370,6 +436,7 @@ function EditorInner() {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onNodeDragStart={() => pushHistory()}
             onNodeDragStop={onNodeDragStop}
             onNodeClick={(_, n) => setSelected(n.id)}
             onNodeDoubleClick={(_, n) => { const el = elementOf(n); if (el) goToLinked(el); }}

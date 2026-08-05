@@ -1,6 +1,7 @@
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { Link2 } from "lucide-react";
 import { Fragment, type CSSProperties, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 
 import type { Element, Lang } from "../lib/types";
 import { linkedView } from "./drilldown";
@@ -21,16 +22,20 @@ export interface ArchiNodeData extends Record<string, unknown> {
   style?: NodeStyleOverride;
 }
 
-// A small badge marking an element that drills down into another view.
+// A small badge marking an element that drills down into another view; click it
+// (or double-click the node) to open the linked view.
 function NavBadge({ element }: { element: Element }) {
-  if (!linkedView(element)) return null;
+  const navigate = useNavigate();
+  const target = linkedView(element);
+  if (!target) return null;
   return (
-    <span
-      title={`Navega a la vista «${linkedView(element)}» (doble clic)`}
-      className="absolute -right-2 -top-2 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-[hsl(var(--accent))] text-white shadow"
+    <button
+      title={`Abrir la vista «${target}»`}
+      onClick={(e) => { e.stopPropagation(); navigate(`/views/${target}/edit`); }}
+      className="nodrag absolute -right-2 -top-2 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-[hsl(var(--accent))] text-white shadow transition hover:scale-110"
     >
       <Link2 size={10} />
-    </span>
+    </button>
   );
 }
 

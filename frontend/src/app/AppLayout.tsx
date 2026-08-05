@@ -12,6 +12,10 @@ const NAV = [
   { to: "/analysis", label: "Análisis", icon: Sparkles },
 ];
 
+const ROLE_LABEL: Record<string, string> = {
+  viewer: "Lector", editor: "Editor", approver: "Aprobador", admin: "Administrador",
+};
+
 export function AppLayout() {
   const { theme, toggle } = useTheme();
   const me = useQuery({ queryKey: ["me"], queryFn: api.getMe });
@@ -54,7 +58,12 @@ export function AppLayout() {
           <button className="btn btn-ghost" onClick={toggle} title="Cambiar tema">
             {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
           </button>
-          <div className="badge bg-black/5 dark:bg-white/10">Demo</div>
+          {me.data && (
+            <div className="flex items-center gap-2" title={me.data.email}>
+              <span className="text-sm font-medium">{me.data.display_name}</span>
+              <span className="badge bg-black/5 dark:bg-white/10">{ROLE_LABEL[me.data.role] ?? me.data.role}</span>
+            </div>
+          )}
         </header>
 
         <main className="min-h-0 flex-1 overflow-auto p-6">
