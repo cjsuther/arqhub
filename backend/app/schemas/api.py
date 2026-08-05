@@ -230,6 +230,15 @@ class IdList(BaseModel):
     ids: list[str] = []
 
 
+# --- Registry: custom component kinds (SPEC §4.2) ----------------------------
+class KindCreate(BaseModel):
+    key: str
+    layer: str = "application"
+    archimate: str | None = None
+    bpmn: str | None = None
+    uml: str | None = None
+
+
 # --- Governance / approvals (SPEC §11) ---------------------------------------
 class SubmitReviewBody(BaseModel):
     approvers: list[str] = Field(default_factory=list)  # user emails/ids

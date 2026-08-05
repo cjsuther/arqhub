@@ -39,6 +39,9 @@ function qs(params: Record<string, string | undefined>): string {
 
 export const api = {
   registry: () => http<Registry>("/meta/registry"),
+  addKind: (body: { key: string; layer: string; archimate?: string | null; bpmn?: string | null; uml?: string | null }) =>
+    http<Registry>("/meta/kinds", { method: "POST", body: JSON.stringify(body) }),
+  deleteKind: (key: string) => http<Registry>(`/meta/kinds/${key}`, { method: "DELETE" }),
 
   listElements: (f: {
     kind?: string;

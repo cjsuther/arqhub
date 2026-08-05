@@ -139,10 +139,10 @@ export function CatalogPage() {
                 <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[hsl(var(--muted))]">
                   {g.k} <span className="font-normal">({g.items.length})</span>
                 </h2>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{g.items.map(card)}</div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{g.items.map(card)}</div>
               </div>
             ))
-          : <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{visible.map(card)}</div>}
+          : <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{visible.map(card)}</div>}
 
         {visible.length === 0 && !elements.isLoading && (
           <p className="text-sm text-[hsl(var(--muted))]">No hay elementos en esta selección.</p>

@@ -33,6 +33,12 @@ def export_xmi(db: DbDep, principal: PrincipalDep, view: str) -> Response:
     return _export(db, principal.tenant_id, view, "xmi")
 
 
+@router.get("/mermaid", response_class=Response)
+def export_mermaid(db: DbDep, principal: PrincipalDep, view: str) -> Response:
+    """Mermaid flowchart (text) — compact, LLM-friendly, renders in Markdown."""
+    return _export(db, principal.tenant_id, view, "mermaid")
+
+
 @router.get("/image", response_class=Response)
 def export_image(
     db: DbDep, principal: PrincipalDep, view: str, format: str = Query("svg")

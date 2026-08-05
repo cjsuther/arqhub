@@ -10,6 +10,7 @@ import { AnalysisPage } from "./features/analysis/AnalysisPage";
 import { ApprovalsPage } from "./features/approvals/ApprovalsPage";
 import { CatalogPage } from "./features/catalog/CatalogPage";
 import { ElementDetailPage } from "./features/catalog/ElementDetailPage";
+import { MappingsPage } from "./features/mappings/MappingsPage";
 import { UsersPage } from "./features/users/UsersPage";
 import { ViewsPage } from "./features/views/ViewsPage";
 
@@ -28,6 +29,7 @@ const router = createBrowserRouter([
       { path: "views", element: <ViewsPage /> },
       { path: "approvals", element: <ApprovalsPage /> },
       { path: "analysis", element: <AnalysisPage /> },
+      { path: "mappings", element: <MappingsPage /> },
       { path: "users", element: <UsersPage /> },
     ],
   },

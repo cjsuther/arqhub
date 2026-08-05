@@ -12,9 +12,9 @@ from pydantic import BaseModel
 
 from .graph import ModelGraph
 from .registry import (
-    VALID_KINDS,
     VALID_RELATIONS,
     Lang,
+    is_valid_kind,
     kind_exists_in,
     normalize_relation,
     relation_exists_in,
@@ -40,7 +40,7 @@ def validate_graph(graph: ModelGraph) -> ValidationReport:
     report = ValidationReport()
 
     for slug, el in graph.elements.items():
-        if el.kind not in VALID_KINDS:
+        if not is_valid_kind(el.kind):
             report.errors.append(
                 Issue(
                     code="unknown_kind",

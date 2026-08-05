@@ -88,8 +88,9 @@ export interface Comment {
 }
 
 export interface RegistryKind {
-  layer: "business" | "application" | "technology" | "motivation";
+  layer: string;
   mappings: Record<Lang, string | null>;
+  custom?: boolean;
 }
 
 export interface Registry {

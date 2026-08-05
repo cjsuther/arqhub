@@ -18,6 +18,7 @@ from .dsl.graph import Element, Relation
 from .dsl.schema import ViewDef
 from .exporters.archimate_xml import export_archimate
 from .exporters.bpmn_xml import export_bpmn
+from .exporters.mermaid import export_mermaid
 from .exporters.svg import render_view_svg
 from .exporters.xmi import export_xmi
 from .repository import load_graph
@@ -30,6 +31,7 @@ FORMATS = {
     "bpmn": _XML,
     "xmi": _XML,
     "svg": "image/svg+xml",
+    "mermaid": "text/plain; charset=utf-8",
 }
 
 
@@ -88,6 +90,10 @@ def export_view(db: Session, tenant_id: str, slug: str, fmt: str) -> tuple[str, 
         return render_view_svg(graph, view, layout), FORMATS[fmt]
 
     els, rels = _subgraph(graph, view)
+
+    if fmt == "mermaid":
+        return export_mermaid(els, rels, view), FORMATS[fmt]
+
     positions = _positions(db, row.id, els)
 
     if fmt == "archimate":

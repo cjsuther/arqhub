@@ -27,6 +27,8 @@ async def lifespan(app: FastAPI):
         Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         ensure_seed(db)
+        from .services.kind_registry import load_custom_kinds
+        load_custom_kinds(db)  # extend the registry matrix with persisted custom kinds
     yield
 
 

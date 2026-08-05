@@ -101,6 +101,23 @@ class ViewShare(Base, PkMixin, TenantMixin, TimestampMixin):
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
 
 
+class CustomKind(Base, PkMixin, TimestampMixin):
+    """A user-defined component kind extending the registry matrix (SPEC §4.2).
+
+    Global (the type registry is a global SSOT, not tenant-scoped). Each per-language
+    column is the concrete type token, or NULL when the kind has no representation
+    in that language.
+    """
+
+    __tablename__ = "custom_kinds"
+
+    key: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    layer: Mapped[str] = mapped_column(String(32))
+    archimate: Mapped[str | None] = mapped_column(String(64), default=None)
+    bpmn: Mapped[str | None] = mapped_column(String(64), default=None)
+    uml: Mapped[str | None] = mapped_column(String(64), default=None)
+
+
 class ModelVersion(Base, PkMixin, TenantMixin, TimestampMixin):
     """Snapshot of the DSL for a scope (whole model or one view) — SPEC §6, §11."""
 

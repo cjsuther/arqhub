@@ -98,6 +98,12 @@ def render_view(slug: str) -> str:
 
 
 @mcp.tool()
+def export_view_mermaid(slug: str) -> str:
+    """Mermaid flowchart of a view — compact text the IA can read/understand fast."""
+    return api.get("/export/mermaid", {"view": slug})
+
+
+@mcp.tool()
 def diff_versions(slug: str, from_version: int, to_version: int) -> dict:
     """Semantic diff between two versions of a view."""
     return api.get(f"/views/{slug}/diff", {"from": from_version, "to": to_version})

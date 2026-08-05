@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import {
-  Boxes, CheckSquare, LayoutGrid, Menu, Moon, Network, Search, Sparkles, Sun, Users,
+  Boxes, CheckSquare, LayoutGrid, Menu, Moon, Network, Search, Shapes, Sparkles, Sun, Users,
 } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
@@ -13,6 +13,7 @@ const NAV = [
   { to: "/views", label: "Vistas", icon: LayoutGrid },
   { to: "/approvals", label: "Aprobaciones", icon: CheckSquare },
   { to: "/analysis", label: "Análisis", icon: Sparkles },
+  { to: "/mappings", label: "Mapeos", icon: Shapes },
 ];
 
 const ROLE_LABEL: Record<string, string> = {

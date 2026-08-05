@@ -94,6 +94,33 @@ RELATION_ALIASES: dict[str, str] = {
 VALID_KINDS: frozenset[str] = frozenset(KIND_MAPPINGS)
 VALID_RELATIONS: frozenset[str] = frozenset(RELATION_MAPPINGS)
 
+# Kinds registered at runtime (persisted in ``custom_kinds``), on top of the
+# built-in matrix. The registry stays the single source of truth (SPEC §4.2);
+# these just extend it so teams can map components not covered out of the box.
+CUSTOM_KINDS: set[str] = set()
+
+
+def register_kind(key: str, layer: str, mappings: dict[Lang, str | None], *, custom: bool = True) -> None:
+    """Add/replace a kind and its per-language projection in the live registry."""
+    KIND_MAPPINGS[key] = {lang: mappings.get(lang) for lang in Lang}
+    KIND_LAYER[key] = layer
+    if custom:
+        CUSTOM_KINDS.add(key)
+
+
+def unregister_kind(key: str) -> bool:
+    """Remove a custom kind (built-ins can't be removed)."""
+    if key not in CUSTOM_KINDS:
+        return False
+    KIND_MAPPINGS.pop(key, None)
+    KIND_LAYER.pop(key, None)
+    CUSTOM_KINDS.discard(key)
+    return True
+
+
+def is_valid_kind(kind: str) -> bool:
+    return kind in KIND_MAPPINGS
+
 
 def normalize_relation(kind: str) -> str:
     """Resolve a relation alias to its canonical token (identity if none)."""
@@ -125,8 +152,9 @@ def registry_snapshot() -> dict:
         "lifecycles": [l.value for l in Lifecycle],
         "kinds": {
             kind: {
-                "layer": KIND_LAYER[kind],
+                "layer": KIND_LAYER.get(kind, "application"),
                 "mappings": {lang.value: proj for lang, proj in projs.items()},
+                "custom": kind in CUSTOM_KINDS,
             }
             for kind, projs in KIND_MAPPINGS.items()
         },
