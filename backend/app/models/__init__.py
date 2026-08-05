@@ -2,8 +2,8 @@
 
 from .base import Base
 from .governance import ApprovalDecision, ApprovalRequest, AuditLog
-from .model import Comment, Element, ModelVersion, Relationship, View, ViewLayout
-from .org import Domain, Folder, Tenant, User
+from .model import Comment, Element, ModelVersion, Relationship, View, ViewLayout, ViewShare
+from .org import Domain, Folder, Group, GroupFolder, Tenant, User, UserGroup
 
 __all__ = [
     "ApprovalDecision",
@@ -14,10 +14,14 @@ __all__ = [
     "Domain",
     "Element",
     "Folder",
+    "Group",
+    "GroupFolder",
     "ModelVersion",
     "Relationship",
     "Tenant",
     "User",
+    "UserGroup",
     "View",
     "ViewLayout",
+    "ViewShare",
 ]

@@ -45,6 +45,8 @@ export interface View {
   status_changed_at: string | null;
   status_changed_by: string | null;
   status_changed_by_name: string | null;
+  created_by: string | null;
+  created_by_name: string | null;
   current_version: number;
   folder_id: string | null;
   notes: string | null;
@@ -117,12 +119,25 @@ export interface ViewGraph {
 
 export type Role = "viewer" | "editor" | "approver" | "admin";
 
+export interface GroupRef {
+  id: string;
+  name: string;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  member_count: number;
+  folder_ids: string[];
+}
+
 export interface User {
   id: string;
   email: string;
   display_name: string;
   role: Role;
   is_entra?: boolean;
+  groups: GroupRef[];
 }
 
 export interface Finding {

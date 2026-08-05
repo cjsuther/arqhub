@@ -5,8 +5,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Response, status
 
 from ...core.deps import DbDep, PrincipalDep, require_role
-from ...schemas.api import FolderCreate, FolderRead, FolderUpdate
-from ...services import folders
+from ...schemas.api import FolderCreate, FolderRead, FolderUpdate, IdList
+from ...services import folders, groups
 
 router = APIRouter(prefix="/folders", tags=["folders"])
 
@@ -30,3 +30,14 @@ def update_folder(db: DbDep, folder_id: str, payload: FolderUpdate, principal=De
 def delete_folder(db: DbDep, folder_id: str, principal=Depends(require_role("editor"))):
     folders.delete_folder(db, principal, folder_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# --- Folder visibility: which groups can see this folder (SPEC §12) ----------
+@router.get("/{folder_id}/groups", response_model=list[str])
+def get_folder_groups(db: DbDep, principal: PrincipalDep, folder_id: str):
+    return groups.get_folder_groups(db, principal.tenant_id, folder_id)
+
+
+@router.put("/{folder_id}/groups", response_model=list[str])
+def set_folder_groups(db: DbDep, folder_id: str, body: IdList, principal=Depends(require_role("admin"))):
+    return groups.set_folder_groups(db, principal, folder_id, body.ids)

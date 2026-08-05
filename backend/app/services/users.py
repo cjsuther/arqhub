@@ -16,14 +16,16 @@ from ..core.auth import Principal
 from ..core.deps import write_audit
 from ..models import User
 from ..schemas.api import UserCreate, UserRead, UserUpdate
+from .groups import groups_of_user
 
 ROLES = {"viewer", "editor", "approver", "admin"}
 
 
-def _read(u: User) -> UserRead:
+def _read(db: Session, u: User) -> UserRead:
     return UserRead(
         id=u.id, email=u.email, display_name=u.display_name, role=u.role,
         is_entra=bool(u.entra_oid),
+        groups=groups_of_user(db, u.tenant_id, u.id),
     )
 
 
@@ -31,14 +33,21 @@ def list_users(db: Session, tenant_id: str, role: str | None = None) -> list[Use
     q = select(User).where(User.tenant_id == tenant_id)
     if role:
         q = q.where(User.role == role)
-    return [_read(u) for u in db.scalars(q.order_by(User.display_name))]
+    return [_read(db, u) for u in db.scalars(q.order_by(User.display_name))]
 
 
 def get_me(db: Session, principal: Principal) -> UserRead:
     u = db.get(User, principal.user_id)
     if u is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found.")
-    return _read(u)
+    return _read(db, u)
+
+
+def get_user(db: Session, tenant_id: str, user_id: str) -> UserRead:
+    u = db.get(User, user_id)
+    if u is None or u.tenant_id != tenant_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Usuario no encontrado.")
+    return _read(db, u)
 
 
 def _validate_role(role: str) -> None:
@@ -78,7 +87,7 @@ def create_user(db: Session, principal: Principal, payload: UserCreate) -> UserR
                 payload={"role": payload.role})
     db.commit()
     db.refresh(user)
-    return _read(user)
+    return _read(db, user)
 
 
 def update_user(db: Session, principal: Principal, user_id: str, payload: UserUpdate) -> UserRead:
@@ -95,7 +104,7 @@ def update_user(db: Session, principal: Principal, user_id: str, payload: UserUp
                 payload={"role": user.role})
     db.commit()
     db.refresh(user)
-    return _read(user)
+    return _read(db, user)
 
 
 def delete_user(db: Session, principal: Principal, user_id: str) -> None:

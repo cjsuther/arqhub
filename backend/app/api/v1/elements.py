@@ -23,7 +23,7 @@ def list_elements(
     q: str | None = None,
 ):
     return catalog.list_elements(
-        db, principal.tenant_id, kind=kind, domain=domain, lifecycle=lifecycle, tag=tag, q=q
+        db, principal, kind=kind, domain=domain, lifecycle=lifecycle, tag=tag, q=q
     )
 
 

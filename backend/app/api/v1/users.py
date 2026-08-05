@@ -5,8 +5,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Response, status
 
 from ...core.deps import DbDep, PrincipalDep, require_role
-from ...schemas.api import UserCreate, UserRead, UserUpdate
-from ...services import users
+from ...schemas.api import IdList, UserCreate, UserRead, UserUpdate
+from ...services import groups, users
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -30,6 +30,12 @@ def create_user(db: DbDep, payload: UserCreate, principal=Depends(require_role("
 @router.patch("/{user_id}", response_model=UserRead)
 def update_user(db: DbDep, user_id: str, payload: UserUpdate, principal=Depends(require_role("admin"))):
     return users.update_user(db, principal, user_id, payload)
+
+
+@router.put("/{user_id}/groups", response_model=UserRead)
+def set_user_groups(db: DbDep, user_id: str, body: IdList, principal=Depends(require_role("admin"))):
+    groups.set_user_groups(db, principal, user_id, body.ids)
+    return users.get_user(db, principal.tenant_id, user_id)
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

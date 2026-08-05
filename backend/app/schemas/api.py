@@ -109,6 +109,8 @@ class ViewRead(BaseModel):
     status_changed_at: str | None = None
     status_changed_by: str | None = None
     status_changed_by_name: str | None = None
+    created_by: str | None = None
+    created_by_name: str | None = None
     current_version: int
     folder_id: str | None = None
     notes: str | None = None
@@ -182,12 +184,18 @@ class ViewGraphRead(BaseModel):
 
 
 # --- Users (SPEC §7, §12) ----------------------------------------------------
+class GroupRef(BaseModel):
+    id: str
+    name: str
+
+
 class UserRead(BaseModel):
     id: str
     email: str
     display_name: str
     role: str  # viewer|editor|approver|admin
     is_entra: bool = False  # provisioned from Entra ID (role re-synced on login)
+    groups: list[GroupRef] = []
 
 
 class UserCreate(BaseModel):
@@ -199,6 +207,27 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     display_name: str | None = None
     role: str | None = None
+
+
+# --- Groups (folder visibility, SPEC §12) ------------------------------------
+class GroupCreate(BaseModel):
+    name: str
+
+
+class GroupUpdate(BaseModel):
+    name: str | None = None
+
+
+class GroupRead(BaseModel):
+    id: str
+    name: str
+    member_count: int = 0
+    folder_ids: list[str] = []
+
+
+class IdList(BaseModel):
+    """Generic id-set payload (group assignment, folder grants, draft shares)."""
+    ids: list[str] = []
 
 
 # --- Governance / approvals (SPEC §11) ---------------------------------------

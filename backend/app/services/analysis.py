@@ -18,6 +18,9 @@ from .dsl.validator import validate_graph
 
 NAME_SIMILARITY_THRESHOLD = 0.85
 
+# User-facing lifecycle labels (Spanish UI).
+_LIFECYCLE_ES = {"proposed": "propuesto", "active": "activo", "deprecated": "obsoleto", "retired": "retirado"}
+
 
 class Finding(BaseModel):
     code: str
@@ -36,9 +39,9 @@ def _duplicates(graph: ModelGraph) -> list[Finding]:
         if ratio >= NAME_SIMILARITY_THRESHOLD:
             out.append(Finding(
                 code="possible_duplicate", severity="warning",
-                message=f"'{a.name}' and '{b.name}' ({a.kind}) look like duplicates (similarity {ratio:.2f}).",
+                message=f"'{a.name}' y '{b.name}' ({a.kind}) parecen duplicados (similitud {ratio:.2f}).",
                 entities=[a.slug, b.slug],
-                suggestion="Merge one into the other and repoint relations.",
+                suggestion="Fusioná uno en el otro y reapuntá las relaciones.",
             ))
     return out
 
@@ -57,13 +60,13 @@ def _orphans(graph: ModelGraph) -> list[Finding]:
         if slug not in related:
             out.append(Finding(
                 code="orphan_no_relations", severity="info",
-                message=f"'{el.name}' has no relations.", entities=[slug],
-                suggestion="Relate it to the model or remove it.",
+                message=f"'{el.name}' no tiene relaciones.", entities=[slug],
+                suggestion="Relacionalo con el modelo o eliminalo.",
             ))
         if slug not in in_views:
             out.append(Finding(
                 code="orphan_no_views", severity="info",
-                message=f"'{el.name}' does not appear in any view.", entities=[slug],
+                message=f"'{el.name}' no aparece en ninguna vista.", entities=[slug],
             ))
     return out
 
@@ -77,9 +80,9 @@ def _lifecycle(graph: ModelGraph) -> list[Finding]:
         if src.lifecycle.value == "active" and dst.lifecycle.value in ("deprecated", "retired"):
             out.append(Finding(
                 code="lifecycle_inconsistency", severity="warning",
-                message=f"Active '{src.name}' depends on {dst.lifecycle.value} '{dst.name}'.",
+                message=f"'{src.name}' (activo) depende de '{dst.name}' ({_LIFECYCLE_ES.get(dst.lifecycle.value, dst.lifecycle.value)}).",
                 entities=[r.from_, r.to],
-                suggestion="Migrate off the deprecated element or update its lifecycle.",
+                suggestion="Migrá fuera del elemento obsoleto o actualizá su ciclo de vida.",
             ))
     return out
 
@@ -100,9 +103,9 @@ def _coupling(graph: ModelGraph) -> list[Finding]:
             el = graph.elements.get(slug)
             out.append(Finding(
                 code="high_coupling", severity="info",
-                message=f"'{el.name if el else slug}' has degree {deg} (>= p90 {threshold}).",
+                message=f"'{el.name if el else slug}' tiene grado {deg} (>= p90 {threshold}).",
                 entities=[slug],
-                suggestion="Consider decomposing or introducing an intermediary.",
+                suggestion="Considerá descomponerlo o introducir un intermediario.",
             ))
     return out
 

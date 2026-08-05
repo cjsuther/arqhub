@@ -33,6 +33,32 @@ class Domain(Base, PkMixin, TenantMixin, TimestampMixin):
     ad_group_id: Mapped[str | None] = mapped_column(String(64), default=None)
 
 
+class Group(Base, PkMixin, TenantMixin, TimestampMixin):
+    """A named set of users used to grant folder visibility (SPEC §12)."""
+
+    __tablename__ = "groups"
+
+    name: Mapped[str] = mapped_column(String(255))
+
+
+class UserGroup(Base, PkMixin, TenantMixin, TimestampMixin):
+    """Membership: a user belongs to many groups, a group has many users."""
+
+    __tablename__ = "user_groups"
+
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    group_id: Mapped[str] = mapped_column(String(36), ForeignKey("groups.id"), index=True)
+
+
+class GroupFolder(Base, PkMixin, TenantMixin, TimestampMixin):
+    """Visibility grant: a group can see a folder (and its contents)."""
+
+    __tablename__ = "group_folders"
+
+    group_id: Mapped[str] = mapped_column(String(36), ForeignKey("groups.id"), index=True)
+    folder_id: Mapped[str] = mapped_column(String(36), ForeignKey("folders.id"), index=True)
+
+
 class Folder(Base, PkMixin, TenantMixin, TimestampMixin):
     """Hierarchical folder for organising the catalog and views (presentation).
 

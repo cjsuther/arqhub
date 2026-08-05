@@ -10,6 +10,7 @@ from . import (
     elements,
     exports,
     folders,
+    groups,
     meta,
     relationships,
     users,
@@ -27,4 +28,5 @@ router.include_router(approvals.router)
 router.include_router(analysis.router)
 router.include_router(users.router)
 router.include_router(folders.router)
+router.include_router(groups.router)
 router.include_router(comments.router)

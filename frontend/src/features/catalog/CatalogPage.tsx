@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { folderOptions } from "../../components/FolderSelect";
-import { ALL, DND_ITEM, FolderTree, UNFILED, descendants } from "../../components/FolderTree";
+import { FoldersAside } from "../../components/FoldersAside";
+import { ALL, DND_ITEM, UNFILED, descendants } from "../../components/FolderTree";
 import { api } from "../../lib/api";
 import type { Element } from "../../lib/types";
 import { KindBadge, LifecycleBadge } from "../../lib/ui";
@@ -91,10 +92,8 @@ export function CatalogPage() {
 
   return (
     <div className="flex h-full gap-4">
-      <aside className="surface w-56 shrink-0 overflow-auto rounded-lg border p-2">
-        <FolderTree scope="element" selected={folder} onSelect={setFolder}
-          onDropItem={(folderId, slugs) => move.mutate({ slugs, folderId })} />
-      </aside>
+      <FoldersAside scope="element" selected={folder} onSelect={setFolder}
+        onDropItem={(folderId, slugs) => move.mutate({ slugs, folderId })} />
 
       <div className="min-w-0 flex-1 space-y-4">
         <div>

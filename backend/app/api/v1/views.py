@@ -8,6 +8,7 @@ from ...core.deps import DbDep, PrincipalDep, require_role
 from ...schemas.api import (
     ApprovalRead,
     FolderAssign,
+    IdList,
     LayoutPut,
     SubmitReviewBody,
     ViewCreate,
@@ -24,7 +25,7 @@ router = APIRouter(prefix="/views", tags=["views"])
 
 @router.get("", response_model=list[ViewRead])
 def list_views(db: DbDep, principal: PrincipalDep):
-    return views.list_views(db, principal.tenant_id)
+    return views.list_views(db, principal)
 
 
 @router.get("/{slug}", response_model=ViewRead)
@@ -49,14 +50,24 @@ def set_folder(db: DbDep, slug: str, body: FolderAssign, principal=Depends(requi
 
 @router.get("/{slug}/render", response_class=Response)
 def render_view(db: DbDep, principal: PrincipalDep, slug: str) -> Response:
-    svg = views.render_view(db, principal.tenant_id, slug)
+    svg = views.render_view(db, principal, slug)
     return Response(content=svg, media_type="image/svg+xml")
 
 
 @router.get("/{slug}/graph", response_model=ViewGraphRead)
 def get_view_graph(db: DbDep, principal: PrincipalDep, slug: str):
     """Resolved elements + relations + layout — the canvas load endpoint."""
-    return views.get_view_graph(db, principal.tenant_id, slug)
+    return views.get_view_graph(db, principal, slug)
+
+
+@router.get("/{slug}/shares", response_model=list[str])
+def get_shares(db: DbDep, principal: PrincipalDep, slug: str):
+    return views.get_view_shares(db, principal.tenant_id, slug)
+
+
+@router.put("/{slug}/shares", response_model=list[str])
+def set_shares(db: DbDep, slug: str, body: IdList, principal=Depends(require_role("editor"))):
+    return views.set_view_shares(db, principal, slug, body.ids)
 
 
 @router.put("/{slug}/layout", status_code=status.HTTP_204_NO_CONTENT)

@@ -58,6 +58,8 @@ class View(Base, PkMixin, TenantMixin, TimestampMixin):
     # Who moved the view to its current status, and when (SPEC §11).
     status_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     status_changed_by: Mapped[str | None] = mapped_column(String(36), default=None)
+    # Author — a draft is private to its creator + explicit shares (SPEC §12).
+    created_by: Mapped[str | None] = mapped_column(String(36), default=None)
     current_version: Mapped[int] = mapped_column(Integer, default=0)
     folder_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("folders.id"), default=None, index=True)
     # Rich-text documentation (HTML from the WYSIWYG editor), presentation-side.
@@ -88,6 +90,15 @@ class Comment(Base, PkMixin, TenantMixin, TimestampMixin):
     view_id: Mapped[str] = mapped_column(String(36), ForeignKey("views.id"), index=True)
     author_id: Mapped[str | None] = mapped_column(String(36), default=None)
     body: Mapped[str] = mapped_column(String)
+
+
+class ViewShare(Base, PkMixin, TenantMixin, TimestampMixin):
+    """A user the draft view is shared with, beyond its author (SPEC §12)."""
+
+    __tablename__ = "view_shares"
+
+    view_id: Mapped[str] = mapped_column(String(36), ForeignKey("views.id"), index=True)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
 
 
 class ModelVersion(Base, PkMixin, TenantMixin, TimestampMixin):

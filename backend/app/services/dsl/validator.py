@@ -85,7 +85,7 @@ def validate_graph(graph: ModelGraph) -> ValidationReport:
                 report.warnings.append(
                     Issue(
                         code="kind_not_in_lang",
-                        message=f"Element '{el_slug}' (kind '{el.kind}') has no projection in {lang.value}.",
+                        message=f"El elemento '{el_slug}' (tipo '{el.kind}') no tiene representación en {lang.value}.",
                         path=path,
                     )
                 )
@@ -101,7 +101,7 @@ def validate_graph(graph: ModelGraph) -> ValidationReport:
                     report.warnings.append(
                         Issue(
                             code="relation_not_in_lang",
-                            message=f"Relation '{rid}' (kind '{rel.kind}') has no projection in {lang.value}.",
+                            message=f"La relación '{rid}' (tipo '{rel.kind}') no tiene representación en {lang.value}.",
                             path=path,
                         )
                     )

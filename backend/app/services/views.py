@@ -9,7 +9,8 @@ from sqlalchemy import delete
 
 from ..core.auth import Principal
 from ..core.deps import write_audit
-from ..models import ApprovalRequest, ModelVersion, View, ViewLayout
+from ..models import ApprovalRequest, ModelVersion, User, View, ViewLayout, ViewShare
+from . import access
 from ..schemas.api import (
     LayoutNode,
     LayoutPut,
@@ -29,17 +30,17 @@ from .repository import load_graph, sync_graph
 def _name_of(db, tenant_id: str, user_id: str | None) -> str | None:
     if not user_id:
         return None
-    from ..models import User
     u = db.scalar(select(User).where(User.tenant_id == tenant_id, User.id == user_id))
     return u.display_name if u else user_id
 
 
-def _view_read(v: View, changed_by_name: str | None = None) -> ViewRead:
+def _view_read(db, tenant_id: str, v: View) -> ViewRead:
     return ViewRead(
         slug=v.slug, name=v.name, lang=v.lang, viewpoint=v.viewpoint,
         include=v.include or {}, status=v.status,
         status_changed_at=v.status_changed_at.isoformat() if v.status_changed_at else None,
-        status_changed_by=v.status_changed_by, status_changed_by_name=changed_by_name,
+        status_changed_by=v.status_changed_by, status_changed_by_name=_name_of(db, tenant_id, v.status_changed_by),
+        created_by=v.created_by, created_by_name=_name_of(db, tenant_id, v.created_by),
         current_version=v.current_version, folder_id=v.folder_id, notes=v.notes,
     )
 
@@ -52,10 +53,36 @@ def set_view_status(db, view_row: View, status: str, principal: Principal) -> No
     view_row.status_changed_by = principal.user_id
 
 
-def list_views(db, tenant_id: str) -> list[ViewRead]:
-    rows = db.scalars(select(View).where(View.tenant_id == tenant_id)).all()
-    names = {r.status_changed_by: _name_of(db, tenant_id, r.status_changed_by) for r in rows}
-    return [_view_read(v, names.get(v.status_changed_by)) for v in rows]
+def _assert_visible(db, principal: Principal, row: View) -> None:
+    accessible = access.accessible_folder_ids(db, principal)
+    shares = set(db.scalars(select(ViewShare.user_id).where(ViewShare.view_id == row.id)).all())
+    if not access.can_see_view(principal, row, accessible, shares):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"View '{row.slug}' not found.")
+
+
+def list_views(db, principal: Principal) -> list[ViewRead]:
+    rows = db.scalars(select(View).where(View.tenant_id == principal.tenant_id)).all()
+    accessible = access.accessible_folder_ids(db, principal)
+    shares = access.view_shares(db, principal.tenant_id)
+    visible = [v for v in rows if access.can_see_view(principal, v, accessible, shares.get(v.id, set()))]
+    return [_view_read(db, principal.tenant_id, v) for v in visible]
+
+
+def get_view_shares(db, tenant_id: str, slug: str) -> list[str]:
+    row = _get_view_row(db, tenant_id, slug)
+    return list(db.scalars(select(ViewShare.user_id).where(ViewShare.view_id == row.id)).all())
+
+
+def set_view_shares(db, principal: Principal, slug: str, user_ids: list[str]) -> list[str]:
+    row = _get_view_row(db, principal.tenant_id, slug)
+    valid = set(db.scalars(select(User.id).where(User.tenant_id == principal.tenant_id)).all())
+    db.execute(delete(ViewShare).where(ViewShare.view_id == row.id))
+    for uid in dict.fromkeys(user_ids):
+        if uid in valid and uid != row.created_by:
+            db.add(ViewShare(tenant_id=principal.tenant_id, view_id=row.id, user_id=uid))
+    write_audit(db, principal, action="share", entity="view", entity_id=slug, payload={"users": user_ids})
+    db.commit()
+    return get_view_shares(db, principal.tenant_id, slug)
 
 
 def _get_view_row(db, tenant_id: str, slug: str) -> View:
@@ -67,7 +94,7 @@ def _get_view_row(db, tenant_id: str, slug: str) -> View:
 
 def get_view(db, tenant_id: str, slug: str) -> ViewRead:
     v = _get_view_row(db, tenant_id, slug)
-    return _view_read(v, _name_of(db, tenant_id, v.status_changed_by))
+    return _view_read(db, tenant_id, v)
 
 
 def _layout_map(db, view_id: str) -> dict:
@@ -77,18 +104,21 @@ def _layout_map(db, view_id: str) -> dict:
     }
 
 
-def render_view(db, tenant_id: str, slug: str) -> str:
-    row = _get_view_row(db, tenant_id, slug)
-    graph = load_graph(db, tenant_id)
+def render_view(db, principal: Principal, slug: str) -> str:
+    row = _get_view_row(db, principal.tenant_id, slug)
+    _assert_visible(db, principal, row)
+    graph = load_graph(db, principal.tenant_id)
     view = graph.views.get(slug)
     if view is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"View '{slug}' not found.")
     return render_view_svg(graph, view, _layout_map(db, row.id))
 
 
-def get_view_graph(db, tenant_id: str, slug: str) -> ViewGraphRead:
+def get_view_graph(db, principal: Principal, slug: str) -> ViewGraphRead:
     """Resolve everything the canvas needs to render a view in one call."""
+    tenant_id = principal.tenant_id
     row = _get_view_row(db, tenant_id, slug)
+    _assert_visible(db, principal, row)
     graph = load_graph(db, tenant_id)
     sub = _view_subgraph(graph, graph.views[slug])
     layout = [
@@ -96,7 +126,7 @@ def get_view_graph(db, tenant_id: str, slug: str) -> ViewGraphRead:
         for l in db.query(ViewLayout).filter(ViewLayout.view_id == row.id).all()
     ]
     return ViewGraphRead(
-        view=_view_read(row, _name_of(db, tenant_id, row.status_changed_by)),
+        view=_view_read(db, tenant_id, row),
         elements=[_element_read(el) for el in sub.elements.values()],
         relations=[_relation_read(rel) for rel in sub.relations.values()],
         layout=layout,
@@ -136,6 +166,7 @@ def create_view(db, principal: Principal, payload: ViewCreate) -> ViewRead:
     sync_graph(db, principal.tenant_id, result.graph)
     row = _get_view_row(db, principal.tenant_id, payload.slug)
     set_view_status(db, row, "draft", principal)
+    row.created_by = principal.user_id  # author owns the draft (SPEC §12)
     write_audit(db, principal, action="create", entity="view", entity_id=payload.slug)
     db.commit()
     return get_view(db, principal.tenant_id, payload.slug)
@@ -147,7 +178,7 @@ def set_view_folder(db, principal: Principal, slug: str, folder_id: str | None) 
     write_audit(db, principal, action="move_folder", entity="view", entity_id=slug,
                 payload={"folder_id": folder_id})
     db.commit()
-    return _view_read(row, _name_of(db, principal.tenant_id, row.status_changed_by))
+    return _view_read(db, principal.tenant_id, row)
 
 
 def update_view(db, principal: Principal, slug: str, payload: ViewUpdate) -> ViewRead:
@@ -171,7 +202,7 @@ def update_view(db, principal: Principal, slug: str, payload: ViewUpdate) -> Vie
         setattr(row, field, value)
     write_audit(db, principal, action="update", entity="view", entity_id=slug, payload={"fields": list(changes)})
     db.commit()
-    return _view_read(row, _name_of(db, principal.tenant_id, row.status_changed_by))
+    return _view_read(db, principal.tenant_id, row)
 
 
 def _view_subgraph(graph: ModelGraph, view: ViewDef) -> ModelGraph:

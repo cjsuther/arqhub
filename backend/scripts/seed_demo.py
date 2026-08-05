@@ -180,6 +180,17 @@ def main() -> int:
             c.patch(f"{path}/{slug}/folder", json={"folder_id": fid}).raise_for_status()
     print(f"Carpetas creadas: {len(FOLDERS)} (con jerarquía Negocio → Tareas).")
 
+    # 3b) Grupos + visibilidad de carpeta (demo de autorización)
+    users_by_email = {u["email"]: u["id"] for u in c.get("/users").json()}
+    g_arq = c.post("/groups", json={"name": "Arquitectura"}).json()
+    c.post("/groups", json={"name": "Negocio TI"})
+    if "caro@arqhub.local" in users_by_email:
+        c.put(f"/users/{users_by_email['caro@arqhub.local']}/groups", json={"ids": [g_arq["id"]]})
+    apps_folder = by_name.get(("Aplicaciones", "element"))
+    if apps_folder:
+        c.put(f"/folders/{apps_folder}/groups", json={"ids": [g_arq["id"]]})
+    print("Grupos de ejemplo: 'Arquitectura' (Caro es miembro) puede ver la carpeta Aplicaciones.")
+
     # 4) Gobierno: dejar una vista en revisión para poblar la bandeja
     approvers = [u["id"] for u in c.get("/users", params={"role": "approver"}).json()]
     if approvers:

@@ -14,7 +14,7 @@ import {
   type Connection,
   type Node,
 } from "@xyflow/react";
-import { ArrowLeft, FileText, History, LayoutGrid, Magnet, MessageSquare, Redo2, Save, Undo2 } from "lucide-react";
+import { ArrowLeft, FileText, History, LayoutGrid, Magnet, MessageSquare, Redo2, Save, Share2, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -26,6 +26,7 @@ import { CanvasContextMenu, type MenuTarget } from "./CanvasContextMenu";
 import { FolderSelect } from "../components/FolderSelect";
 import { CommentsPanel } from "./CommentsPanel";
 import { DocModal } from "./DocModal";
+import { ShareDialog } from "./ShareDialog";
 import { VersionsModal } from "./VersionsModal";
 import { NAV_PROP, linkedView } from "./drilldown";
 import { ExportMenu } from "./ExportMenu";
@@ -60,6 +61,7 @@ function EditorInner() {
   const [menu, setMenu] = useState<{ x: number; y: number; target: MenuTarget } | null>(null);
   const [overlay, setOverlay] = useState<"versions" | "doc" | null>(null);
   const [showComments, setShowComments] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [snap, setSnap] = useState(false);
   // Per-view edge colour overrides (persisted in the view layout, keyed by relation slug).
   const [edgeStyles, setEdgeStyles] = useState<Record<string, { stroke?: string }>>({});
@@ -435,7 +437,12 @@ function EditorInner() {
           </div>
         )}
         {vg && <GovernanceControls view={vg.view} onChanged={refetch} />}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          {vg?.view.status === "draft" && (
+            <button className="btn btn-ghost" onClick={() => setShowShare(true)} title="Compartir borrador">
+              <Share2 size={15} /> Compartir
+            </button>
+          )}
           <button className="btn btn-ghost" onClick={() => setOverlay("versions")} title="Comparar versiones">
             <History size={15} /> Versiones
           </button>
@@ -539,6 +546,7 @@ function EditorInner() {
         />
       )}
 
+      {showShare && vg && <ShareDialog slug={slug} authorId={vg.view.created_by} onClose={() => setShowShare(false)} />}
       {overlay === "versions" && <VersionsModal slug={slug} onClose={() => setOverlay(null)} />}
       {overlay === "doc" && (
         <DocModal slug={slug} initialNotes={vg?.view.notes ?? ""} onClose={() => setOverlay(null)} onSaved={refetch} />

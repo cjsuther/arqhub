@@ -5,6 +5,7 @@ import type {
   Element,
   Finding,
   Folder,
+  Group,
   LayoutNode,
   ModelDiff,
   Registry,
@@ -119,7 +120,22 @@ export const api = {
     http<User>("/users", { method: "POST", body: JSON.stringify(body) }),
   updateUser: (id: string, body: { role?: string; display_name?: string }) =>
     http<User>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  setUserGroups: (id: string, ids: string[]) =>
+    http<User>(`/users/${id}/groups`, { method: "PUT", body: JSON.stringify({ ids }) }),
   deleteUser: (id: string) => http<void>(`/users/${id}`, { method: "DELETE" }),
+
+  // Groups + folder visibility (SPEC §12)
+  listGroups: () => http<Group[]>("/groups"),
+  createGroup: (name: string) => http<Group>("/groups", { method: "POST", body: JSON.stringify({ name }) }),
+  updateGroup: (id: string, name: string) =>
+    http<Group>(`/groups/${id}`, { method: "PATCH", body: JSON.stringify({ name }) }),
+  deleteGroup: (id: string) => http<void>(`/groups/${id}`, { method: "DELETE" }),
+  getFolderGroups: (folderId: string) => http<string[]>(`/folders/${folderId}/groups`),
+  setFolderGroups: (folderId: string, ids: string[]) =>
+    http<string[]>(`/folders/${folderId}/groups`, { method: "PUT", body: JSON.stringify({ ids }) }),
+  getViewShares: (slug: string) => http<string[]>(`/views/${slug}/shares`),
+  setViewShares: (slug: string, ids: string[]) =>
+    http<string[]>(`/views/${slug}/shares`, { method: "PUT", body: JSON.stringify({ ids }) }),
 
   // Folders (SPEC §8.1)
   listFolders: (scope: "element" | "view") => http<Folder[]>(`/folders${qs({ scope })}`),

@@ -20,6 +20,7 @@ from ..schemas.api import (
     RelationshipRead,
     RelationshipUpdate,
 )
+from . import access
 from .dsl import ModelGraph, apply_document
 from .dsl.graph import Element as GraphElement
 from .dsl.graph import Relation as GraphRelation
@@ -78,11 +79,15 @@ def _apply(db, principal: Principal, patch: PatchSection, *, action: str, entity
 
 
 # --- Elements ----------------------------------------------------------------
-def list_elements(db, tenant_id: str, *, kind=None, domain=None, lifecycle=None, tag=None, q=None):
-    graph = load_graph(db, tenant_id)
-    folders = _folder_map(db, tenant_id)
+def list_elements(db, principal: Principal, *, kind=None, domain=None, lifecycle=None, tag=None, q=None):
+    graph = load_graph(db, principal.tenant_id)
+    folders = _folder_map(db, principal.tenant_id)
+    accessible = access.accessible_folder_ids(db, principal)  # None = see all (admin)
     out = []
     for el in graph.elements.values():
+        folder_id = folders.get(el.slug)
+        if not access.folder_visible(accessible, folder_id):
+            continue  # element lives in a folder the user's groups can't see
         if kind and el.kind != kind:
             continue
         if domain and el.domain != domain:
@@ -93,7 +98,7 @@ def list_elements(db, tenant_id: str, *, kind=None, domain=None, lifecycle=None,
             continue
         if q and q.lower() not in f"{el.slug} {el.name} {el.description or ''}".lower():
             continue
-        out.append(_element_read(el, folders.get(el.slug)))
+        out.append(_element_read(el, folder_id))
     return out
 
 
