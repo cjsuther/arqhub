@@ -12,7 +12,7 @@ interface Props {
   scope: "element" | "view";
   selected: string | null;
   onSelect: (id: string | null) => void;
-  onDropItem?: (folderId: string | null, itemId: string) => void; // drag item onto folder
+  onDropItem?: (folderId: string | null, itemIds: string[]) => void; // drag item(s) onto folder
 }
 
 export const DND_ITEM = "application/arqhub-item";
@@ -92,8 +92,8 @@ export function FolderTree({ scope, selected, onSelect, onDropItem }: Props) {
             if (e.dataTransfer.types.includes(DND_ITEM)) e.preventDefault();
           },
           onDrop: (e: DragEvent) => {
-            const item = e.dataTransfer.getData(DND_ITEM);
-            if (item) onDropItem(id === UNFILED ? null : id, item);
+            const items = e.dataTransfer.getData(DND_ITEM).split(",").filter(Boolean);
+            if (items.length) onDropItem(id === UNFILED ? null : id, items);
           },
         }
       : {};

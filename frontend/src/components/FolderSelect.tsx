@@ -5,13 +5,16 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import type { Folder } from "../lib/types";
 
-function flatten(folders: Folder[], parent: string | null = null, depth = 0): { id: string; label: string }[] {
+// Flatten the folder tree into indented options for a <select>.
+export function folderOptions(
+  folders: Folder[], parent: string | null = null, depth = 0,
+): { id: string; label: string }[] {
   return folders
     .filter((f) => f.parent_id === parent)
     .sort((a, b) => a.name.localeCompare(b.name))
     .flatMap((f) => [
       { id: f.id, label: `${"— ".repeat(depth)}${f.name}` },
-      ...flatten(folders, f.id, depth + 1),
+      ...folderOptions(folders, f.id, depth + 1),
     ]);
 }
 
@@ -24,7 +27,7 @@ interface Props {
 
 export function FolderSelect({ scope, value, onChange, className }: Props) {
   const folders = useQuery({ queryKey: ["folders", scope], queryFn: () => api.listFolders(scope) });
-  const options = flatten(folders.data ?? []);
+  const options = folderOptions(folders.data ?? []);
   return (
     <select className={className ?? "input"} value={value ?? ""}
       onChange={(e) => onChange(e.target.value || null)} title="Carpeta">

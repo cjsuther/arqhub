@@ -3,6 +3,7 @@ import { LayoutGrid, List } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
+import { folderOptions } from "../../components/FolderSelect";
 import { ALL, DND_ITEM, FolderTree, UNFILED, descendants } from "../../components/FolderTree";
 import { api } from "../../lib/api";
 import type { Element } from "../../lib/types";
@@ -22,6 +23,7 @@ export function CatalogPage() {
     else localStorage.removeItem("arqhub:folders:element:selected");
   };
   const [grouped, setGrouped] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const registry = useQuery({ queryKey: ["registry"], queryFn: api.registry });
   const folders = useQuery({ queryKey: ["folders", "element"], queryFn: () => api.listFolders("element") });
@@ -31,11 +33,26 @@ export function CatalogPage() {
       api.listElements({ q: q || undefined, kind: kind || undefined, lifecycle: lifecycle || undefined }),
   });
 
+  const clearSel = () => setSelected(new Set());
+  const toggle = (slug: string) =>
+    setSelected((p) => {
+      const n = new Set(p);
+      n.has(slug) ? n.delete(slug) : n.add(slug);
+      return n;
+    });
+
   const move = useMutation({
-    mutationFn: ({ slug, folderId }: { slug: string; folderId: string | null }) =>
-      api.setElementFolder(slug, folderId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["elements"] }),
+    mutationFn: ({ slugs, folderId }: { slugs: string[]; folderId: string | null }) =>
+      Promise.all(slugs.map((s) => api.setElementFolder(s, folderId))),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["elements"] });
+      clearSel();
+    },
   });
+  const bulkMove = (value: string) => {
+    if (!value) return;
+    move.mutate({ slugs: [...selected], folderId: value === "__none__" ? null : value });
+  };
 
   const subtree = folder && folder !== UNFILED ? descendants(folders.data ?? [], folder) : null;
   const inFolder = (e: Element) =>
@@ -43,20 +60,28 @@ export function CatalogPage() {
   const visible = (elements.data ?? []).filter(inFolder);
 
   function card(el: Element) {
+    const sel = selected.has(el.slug);
+    const dragSlugs = sel ? [...selected] : [el.slug]; // dragging a selected card moves the whole selection
     return (
-      <Link key={el.slug} to={`/catalog/${el.slug}`} draggable
-        onDragStart={(e) => e.dataTransfer.setData(DND_ITEM, el.slug)}
-        className="surface block rounded-lg border p-4 transition hover:shadow-sm hover:-translate-y-0.5">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="font-medium leading-tight">{el.name}</h3>
-          <LifecycleBadge value={el.lifecycle} />
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <KindBadge registry={registry.data} kind={el.kind} />
-          {el.domain && <span className="text-xs text-[hsl(var(--muted))]">{el.domain}</span>}
-        </div>
-        {el.description && <p className="mt-2 line-clamp-2 text-sm text-[hsl(var(--muted))]">{el.description}</p>}
-      </Link>
+      <div key={el.slug} className="relative">
+        <input type="checkbox" checked={sel} onChange={() => toggle(el.slug)}
+          title="Seleccionar" className="absolute left-3 top-4 z-10 h-4 w-4 cursor-pointer" />
+        <Link to={`/catalog/${el.slug}`} draggable
+          onDragStart={(e) => e.dataTransfer.setData(DND_ITEM, dragSlugs.join(","))}
+          className={`surface block rounded-lg border p-4 pl-9 transition hover:shadow-sm hover:-translate-y-0.5 ${
+            sel ? "ring-2 ring-[hsl(var(--accent))]" : ""
+          }`}>
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-medium leading-tight">{el.name}</h3>
+            <LifecycleBadge value={el.lifecycle} />
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <KindBadge registry={registry.data} kind={el.kind} />
+            {el.domain && <span className="text-xs text-[hsl(var(--muted))]">{el.domain}</span>}
+          </div>
+          {el.description && <p className="mt-2 line-clamp-2 text-sm text-[hsl(var(--muted))]">{el.description}</p>}
+        </Link>
+      </div>
     );
   }
 
@@ -68,14 +93,14 @@ export function CatalogPage() {
     <div className="flex h-full gap-4">
       <aside className="surface w-56 shrink-0 overflow-auto rounded-lg border p-2">
         <FolderTree scope="element" selected={folder} onSelect={setFolder}
-          onDropItem={(folderId, slug) => move.mutate({ slug, folderId })} />
+          onDropItem={(folderId, slugs) => move.mutate({ slugs, folderId })} />
       </aside>
 
       <div className="min-w-0 flex-1 space-y-4">
         <div>
           <h1 className="text-xl font-semibold">Catálogo</h1>
           <p className="text-sm text-[hsl(var(--muted))]">
-            Arrastrá elementos a una carpeta para organizarlos. El catálogo <em>es</em> el modelo.
+            Seleccioná varios y movelos en lote, o arrastralos a una carpeta. El catálogo <em>es</em> el modelo.
           </p>
         </div>
 
@@ -94,6 +119,18 @@ export function CatalogPage() {
             {grouped ? <List size={15} /> : <LayoutGrid size={15} />} {grouped ? "Lista" : "Agrupar"}
           </button>
         </div>
+
+        {selected.size > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-[hsl(var(--accent))]/10 px-3 py-2 text-sm">
+            <span className="font-medium">{selected.size} seleccionado{selected.size > 1 ? "s" : ""}</span>
+            <select className="input !py-1" value="" onChange={(e) => bulkMove(e.target.value)}>
+              <option value="">Mover a carpeta…</option>
+              <option value="__none__">Sin carpeta</option>
+              {folderOptions(folders.data ?? []).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </select>
+            <button className="btn btn-ghost !py-1 ml-auto" onClick={clearSel}>Limpiar selección</button>
+          </div>
+        )}
 
         {elements.isError && <p className="text-sm text-red-500">Error al cargar. ¿Está el backend en :8000?</p>}
 

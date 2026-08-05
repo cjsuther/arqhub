@@ -3,6 +3,7 @@ import { LayoutGrid, List, Plus, Search } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
+import { folderOptions } from "../../components/FolderSelect";
 import { ALL, DND_ITEM, FolderTree, UNFILED, descendants } from "../../components/FolderTree";
 import { api } from "../../lib/api";
 import type { View } from "../../lib/types";
@@ -24,12 +25,28 @@ export function ViewsPage() {
     else localStorage.removeItem("arqhub:folders:view:selected");
   };
   const [grouped, setGrouped] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const clearSel = () => setSelected(new Set());
+  const toggle = (slug: string) =>
+    setSelected((p) => {
+      const n = new Set(p);
+      n.has(slug) ? n.delete(slug) : n.add(slug);
+      return n;
+    });
 
   const move = useMutation({
-    mutationFn: ({ slug, folderId }: { slug: string; folderId: string | null }) =>
-      api.setViewFolder(slug, folderId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["views"] }),
+    mutationFn: ({ slugs, folderId }: { slugs: string[]; folderId: string | null }) =>
+      Promise.all(slugs.map((s) => api.setViewFolder(s, folderId))),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["views"] });
+      clearSel();
+    },
   });
+  const bulkMove = (value: string) => {
+    if (!value) return;
+    move.mutate({ slugs: [...selected], folderId: value === "__none__" ? null : value });
+  };
 
   const subtree = folder && folder !== UNFILED ? descendants(folders.data ?? [], folder) : null;
   const visible = (views.data ?? []).filter((v) => {
@@ -40,30 +57,38 @@ export function ViewsPage() {
   });
 
   function card(v: View) {
+    const sel = selected.has(v.slug);
+    const dragSlugs = sel ? [...selected] : [v.slug];
     return (
-      <Link key={v.slug} to={`/views/${v.slug}/edit`} draggable
-        onDragStart={(e) => e.dataTransfer.setData(DND_ITEM, v.slug)}
-        className="surface block rounded-lg border p-4 transition hover:shadow-sm hover:-translate-y-0.5">
-        <div className="mb-3 flex aspect-video items-center justify-center overflow-hidden rounded-md bg-black/5 dark:bg-white/5">
-          <img src={`/api/v1/views/${v.slug}/render`} alt={v.name} className="h-full w-full object-contain"
-            onError={(e) => { e.currentTarget.style.display = "none"; }} />
-          <LayoutGrid className="text-[hsl(var(--muted))]" />
-        </div>
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="font-medium leading-tight">{v.name}</h3>
-          <StatusBadge value={v.status} />
-        </div>
-        <div className="mt-2 flex items-center gap-2 text-xs text-[hsl(var(--muted))]">
-          <span className="badge bg-black/5 dark:bg-white/10">{langLabel(v.lang)}</span>
-          <span>v{v.current_version}</span>
-          <span>· {v.include.elements.length} elementos</span>
-        </div>
-        {v.status_changed_at && (
-          <div className="mt-1 text-[11px] text-[hsl(var(--muted))]">
-            {v.status_changed_by_name ? `${v.status_changed_by_name} · ` : ""}{formatDate(v.status_changed_at)}
+      <div key={v.slug} className="relative">
+        <input type="checkbox" checked={sel} onChange={() => toggle(v.slug)}
+          title="Seleccionar" className="absolute left-3 top-3 z-10 h-4 w-4 cursor-pointer" />
+        <Link to={`/views/${v.slug}/edit`} draggable
+          onDragStart={(e) => e.dataTransfer.setData(DND_ITEM, dragSlugs.join(","))}
+          className={`surface block rounded-lg border p-4 transition hover:shadow-sm hover:-translate-y-0.5 ${
+            sel ? "ring-2 ring-[hsl(var(--accent))]" : ""
+          }`}>
+          <div className="mb-3 flex aspect-video items-center justify-center overflow-hidden rounded-md bg-black/5 dark:bg-white/5">
+            <img src={`/api/v1/views/${v.slug}/render`} alt={v.name} className="h-full w-full object-contain"
+              onError={(e) => { e.currentTarget.style.display = "none"; }} />
+            <LayoutGrid className="text-[hsl(var(--muted))]" />
           </div>
-        )}
-      </Link>
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-medium leading-tight">{v.name}</h3>
+            <StatusBadge value={v.status} />
+          </div>
+          <div className="mt-2 flex items-center gap-2 text-xs text-[hsl(var(--muted))]">
+            <span className="badge bg-black/5 dark:bg-white/10">{langLabel(v.lang)}</span>
+            <span>v{v.current_version}</span>
+            <span>· {v.include.elements.length} elementos</span>
+          </div>
+          {v.status_changed_at && (
+            <div className="mt-1 text-[11px] text-[hsl(var(--muted))]">
+              {v.status_changed_by_name ? `${v.status_changed_by_name} · ` : ""}{formatDate(v.status_changed_at)}
+            </div>
+          )}
+        </Link>
+      </div>
     );
   }
 
@@ -75,14 +100,14 @@ export function ViewsPage() {
     <div className="flex h-full gap-4">
       <aside className="surface w-56 shrink-0 overflow-auto rounded-lg border p-2">
         <FolderTree scope="view" selected={folder} onSelect={setFolder}
-          onDropItem={(folderId, slug) => move.mutate({ slug, folderId })} />
+          onDropItem={(folderId, slugs) => move.mutate({ slugs, folderId })} />
       </aside>
 
       <div className="min-w-0 flex-1 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-xl font-semibold">Vistas</h1>
-            <p className="text-sm text-[hsl(var(--muted))]">Arrastrá vistas a carpetas para organizarlas.</p>
+            <p className="text-sm text-[hsl(var(--muted))]">Seleccioná varias y movelas en lote, o arrastralas a una carpeta.</p>
           </div>
           <button className="btn btn-primary" onClick={() => setCreating(true)}><Plus size={16} /> Nueva vista</button>
         </div>
@@ -97,6 +122,18 @@ export function ViewsPage() {
             {grouped ? <List size={15} /> : <LayoutGrid size={15} />} {grouped ? "Lista" : "Agrupar"}
           </button>
         </div>
+
+        {selected.size > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-[hsl(var(--accent))]/10 px-3 py-2 text-sm">
+            <span className="font-medium">{selected.size} seleccionada{selected.size > 1 ? "s" : ""}</span>
+            <select className="input !py-1" value="" onChange={(e) => bulkMove(e.target.value)}>
+              <option value="">Mover a carpeta…</option>
+              <option value="__none__">Sin carpeta</option>
+              {folderOptions(folders.data ?? []).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </select>
+            <button className="btn btn-ghost !py-1 ml-auto" onClick={clearSel}>Limpiar selección</button>
+          </div>
+        )}
 
         {views.isError && <p className="text-sm text-red-500">Error al cargar. ¿Está el backend en :8000?</p>}
 
