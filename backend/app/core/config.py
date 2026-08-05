@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = False
     rate_limit_per_minute: int = 120
 
+    # Notifications (SPEC §11). "log" (default, always works) or "teams" (posts a
+    # MessageCard to an Incoming Webhook — no M365 app registration needed). Any
+    # other corporate chat that accepts an incoming webhook can reuse the seam.
+    notify_provider: str = "log"  # log | teams
+    teams_webhook_url: str | None = None
+    # Base URL used to build clickable links in notifications (e.g. https://arqhub.corp).
+    app_base_url: str = "http://localhost:5173"
+
     api_prefix: str = "/api/v1"
 
     def entra_effective_issuer(self) -> str | None:

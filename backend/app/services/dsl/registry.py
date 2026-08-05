@@ -33,41 +33,118 @@ class Lifecycle(str, Enum):
 
 
 # --- Canonical kinds -> per-language concrete type (SPEC §4.2 table) ----------
-# A value of None means "not projected in this language".
-KIND_MAPPINGS: dict[str, dict[Lang, str | None]] = {
-    "actor": {Lang.archimate: "BusinessActor", Lang.uml: "Actor", Lang.bpmn: "Participant"},
-    "role": {Lang.archimate: "BusinessRole", Lang.uml: "Actor", Lang.bpmn: "Lane"},
-    "process": {Lang.archimate: "BusinessProcess", Lang.uml: "Activity", Lang.bpmn: "Process"},
-    "task": {Lang.archimate: "BusinessProcess", Lang.uml: "Action", Lang.bpmn: "Task"},
-    "event": {Lang.archimate: "BusinessEvent", Lang.uml: "Signal", Lang.bpmn: "Event"},
-    "gateway": {Lang.archimate: "Junction", Lang.uml: "DecisionNode", Lang.bpmn: "Gateway"},
-    "service": {Lang.archimate: "ApplicationService", Lang.uml: "Interface", Lang.bpmn: None},
-    "app-component": {Lang.archimate: "ApplicationComponent", Lang.uml: "Component", Lang.bpmn: "Participant"},
-    "interface": {Lang.archimate: "ApplicationInterface", Lang.uml: "Interface", Lang.bpmn: None},
-    "data-object": {Lang.archimate: "DataObject", Lang.uml: "Class", Lang.bpmn: "DataObject"},
-    "node": {Lang.archimate: "Node", Lang.uml: "Node", Lang.bpmn: None},
-    "artifact": {Lang.archimate: "Artifact", Lang.uml: "Artifact", Lang.bpmn: None},
-    "capability": {Lang.archimate: "Capability", Lang.uml: None, Lang.bpmn: None},
-    "goal": {Lang.archimate: "Goal", Lang.uml: None, Lang.bpmn: None},
+# A value of None (or an absent language key) means "not projected in that
+# language". The 14 "generic" kinds below map across all three languages; the
+# rest (built from the lists that follow) are language-specific components.
+_GENERIC: dict[str, tuple[str, dict[Lang, str | None]]] = {
+    # key: (layer, {lang: concrete type})
+    "actor": ("business", {Lang.archimate: "BusinessActor", Lang.uml: "Actor", Lang.bpmn: "Participant"}),
+    "role": ("business", {Lang.archimate: "BusinessRole", Lang.uml: "Actor", Lang.bpmn: "Lane"}),
+    "process": ("business", {Lang.archimate: "BusinessProcess", Lang.uml: "Activity", Lang.bpmn: "Process"}),
+    "task": ("business", {Lang.archimate: "BusinessProcess", Lang.uml: "Action", Lang.bpmn: "Task"}),
+    "event": ("business", {Lang.archimate: "BusinessEvent", Lang.uml: "Signal", Lang.bpmn: "Event"}),
+    "gateway": ("business", {Lang.archimate: "Junction", Lang.uml: "DecisionNode", Lang.bpmn: "Gateway"}),
+    "service": ("application", {Lang.archimate: "ApplicationService", Lang.uml: "Interface", Lang.bpmn: None}),
+    "app-component": ("application", {Lang.archimate: "ApplicationComponent", Lang.uml: "Component", Lang.bpmn: "Participant"}),
+    "interface": ("application", {Lang.archimate: "ApplicationInterface", Lang.uml: "Interface", Lang.bpmn: None}),
+    "data-object": ("application", {Lang.archimate: "DataObject", Lang.uml: "Class", Lang.bpmn: "DataObject"}),
+    "node": ("technology", {Lang.archimate: "Node", Lang.uml: "Node", Lang.bpmn: None}),
+    "artifact": ("technology", {Lang.archimate: "Artifact", Lang.uml: "Artifact", Lang.bpmn: None}),
+    "capability": ("strategy", {Lang.archimate: "Capability", Lang.uml: None, Lang.bpmn: None}),
+    "goal": ("motivation", {Lang.archimate: "Goal", Lang.uml: None, Lang.bpmn: None}),
 }
 
-# ArchiMate layer per kind — drives node colour in the canvas (SPEC §8.2).
-KIND_LAYER: dict[str, str] = {
-    "actor": "business",
-    "role": "business",
-    "process": "business",
-    "task": "business",
-    "event": "business",
-    "gateway": "business",
-    "service": "application",
-    "app-component": "application",
-    "interface": "application",
-    "data-object": "application",
-    "node": "technology",
-    "artifact": "technology",
-    "capability": "motivation",
-    "goal": "motivation",
+# ArchiMate 3.x elements (ArchiMate-only), by layer. Elements already covered by
+# a generic kind (actor, role, process, event, app-component, interface, service,
+# data-object, node, artifact, capability, goal, gateway=Junction) are omitted.
+_ARCHIMATE: dict[str, list[tuple[str, str]]] = {
+    "strategy": [("resource", "Resource"), ("course-of-action", "CourseOfAction"), ("value-stream", "ValueStream")],
+    "business": [
+        ("business-collaboration", "BusinessCollaboration"), ("business-interface", "BusinessInterface"),
+        ("business-function", "BusinessFunction"), ("business-interaction", "BusinessInteraction"),
+        ("business-service", "BusinessService"), ("business-object", "BusinessObject"),
+        ("contract", "Contract"), ("representation", "Representation"), ("product", "Product"),
+        ("location", "Location"), ("grouping", "Grouping"),  # composite elements
+    ],
+    "application": [
+        ("application-collaboration", "ApplicationCollaboration"), ("application-function", "ApplicationFunction"),
+        ("application-interaction", "ApplicationInteraction"), ("application-process", "ApplicationProcess"),
+        ("application-event", "ApplicationEvent"),
+    ],
+    "technology": [
+        ("device", "Device"), ("system-software", "SystemSoftware"),
+        ("technology-collaboration", "TechnologyCollaboration"), ("technology-interface", "TechnologyInterface"),
+        ("path", "Path"), ("communication-network", "CommunicationNetwork"),
+        ("technology-function", "TechnologyFunction"), ("technology-process", "TechnologyProcess"),
+        ("technology-interaction", "TechnologyInteraction"), ("technology-event", "TechnologyEvent"),
+        ("technology-service", "TechnologyService"),
+    ],
+    "physical": [
+        ("equipment", "Equipment"), ("facility", "Facility"),
+        ("distribution-network", "DistributionNetwork"), ("material", "Material"),
+    ],
+    "motivation": [
+        ("stakeholder", "Stakeholder"), ("driver", "Driver"), ("assessment", "Assessment"),
+        ("outcome", "Outcome"), ("principle", "Principle"), ("requirement", "Requirement"),
+        ("constraint", "Constraint"), ("meaning", "Meaning"), ("value", "Value"),
+    ],
+    "implementation": [
+        ("work-package", "WorkPackage"), ("deliverable", "Deliverable"),
+        ("implementation-event", "ImplementationEvent"), ("plateau", "Plateau"), ("gap", "Gap"),
+    ],
 }
+
+# BPMN 2.0 elements (BPMN-only), beyond the generics (Task/Event/Gateway/Process/
+# Participant/Lane/DataObject).
+_BPMN: list[tuple[str, str]] = [
+    ("start-event", "StartEvent"), ("end-event", "EndEvent"),
+    ("intermediate-event", "IntermediateCatchEvent"), ("boundary-event", "BoundaryEvent"),
+    ("user-task", "UserTask"), ("service-task", "ServiceTask"), ("script-task", "ScriptTask"),
+    ("manual-task", "ManualTask"), ("send-task", "SendTask"), ("receive-task", "ReceiveTask"),
+    ("business-rule-task", "BusinessRuleTask"), ("subprocess", "SubProcess"), ("call-activity", "CallActivity"),
+    ("exclusive-gateway", "ExclusiveGateway"), ("parallel-gateway", "ParallelGateway"),
+    ("inclusive-gateway", "InclusiveGateway"), ("event-based-gateway", "EventBasedGateway"),
+    ("complex-gateway", "ComplexGateway"), ("data-store", "DataStoreReference"),
+    ("text-annotation", "TextAnnotation"), ("bpmn-group", "Group"),
+]
+
+# UML 2.5 elements (UML-only), by layer, beyond the generics (Actor/Activity/
+# Action/Component/Interface/Class/Node/Artifact/DecisionNode/Signal).
+_UML: dict[str, list[tuple[str, str]]] = {
+    "business": [
+        ("use-case", "UseCase"), ("state", "State"), ("state-machine", "StateMachine"),
+        ("lifeline", "Lifeline"), ("initial-node", "InitialNode"), ("final-node", "ActivityFinalNode"),
+        ("fork-node", "ForkNode"), ("join-node", "JoinNode"), ("merge-node", "MergeNode"),
+    ],
+    "application": [
+        ("package", "Package"), ("uml-object", "InstanceSpecification"), ("enumeration", "Enumeration"),
+        ("data-type", "DataType"), ("port", "Port"), ("collaboration", "Collaboration"),
+        ("association-class", "AssociationClass"),
+    ],
+}
+
+
+def _build() -> tuple[dict[str, dict[Lang, str | None]], dict[str, str]]:
+    kinds: dict[str, dict[Lang, str | None]] = {}
+    layers: dict[str, str] = {}
+    for key, (layer, mapping) in _GENERIC.items():
+        kinds[key] = dict(mapping)
+        layers[key] = layer
+    for layer, items in _ARCHIMATE.items():
+        for key, t in items:
+            kinds[key] = {Lang.archimate: t}
+            layers[key] = layer.strip()
+    for key, t in _BPMN:
+        kinds[key] = {Lang.bpmn: t}
+        layers[key] = "application" if key == "data-store" else "business"
+    for layer, items in _UML.items():
+        for key, t in items:
+            kinds[key] = {Lang.uml: t}
+            layers[key] = layer
+    return kinds, layers
+
+
+KIND_MAPPINGS, KIND_LAYER = _build()
 
 # --- Canonical relations -> per-language concrete type (SPEC §4.2) -------------
 RELATION_MAPPINGS: dict[str, dict[Lang, str | None]] = {

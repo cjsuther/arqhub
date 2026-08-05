@@ -32,17 +32,29 @@ def list_comments(db, tenant_id: str, slug: str) -> list[CommentRead]:
     return [_to_read(names, c) for c in rows]
 
 
-def create_comment(db, principal: Principal, slug: str, body: str) -> CommentRead:
+def create_comment(db, principal: Principal, slug: str, body: str, mentions: list[str] | None = None) -> CommentRead:
+    from .notifications import get_notifier
+
     view = views_service._get_view_row(db, principal.tenant_id, slug)
     text = (body or "").strip()
     if not text:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "El comentario no puede estar vacío.")
     c = Comment(tenant_id=principal.tenant_id, view_id=view.id, author_id=principal.user_id, body=text)
     db.add(c)
-    write_audit(db, principal, action="comment", entity="view", entity_id=slug)
+    write_audit(db, principal, action="comment", entity="view", entity_id=slug,
+                payload={"mentions": mentions or []})
     db.commit()
     db.refresh(c)
     names = {u.id: u.display_name for u in db.scalars(select(User).where(User.tenant_id == principal.tenant_id)).all()}
+
+    # Notify mentioned users (excluding the author).
+    mentioned_names = [names[uid] for uid in (mentions or []) if uid in names and uid != principal.user_id]
+    if mentioned_names:
+        get_notifier().comment_mention(
+            view_slug=slug, view_name=view.name,
+            comment_by=names.get(principal.user_id, principal.email),
+            mentioned=mentioned_names, body=text,
+        )
     return _to_read(names, c)
 
 

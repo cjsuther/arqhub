@@ -31,6 +31,7 @@ export const LAYER_STYLES: Record<string, LayerStyle> = {
   motivation: { bg: "#e7ddf7", border: "#9b7ede", text: "#4b2e83" },
   strategy: { bg: "#f7e6cf", border: "#d99b4e", text: "#7a4a12" },
   implementation: { bg: "#fbe0ea", border: "#e06a99", text: "#7a1f47" },
+  physical: { bg: "#e6efe1", border: "#7fae6b", text: "#3c5a2c" },
 };
 
 export function layerStyle(layer?: string): LayerStyle {

@@ -5,6 +5,9 @@ const LAYER_BG: Record<string, string> = {
   application: "bg-layer-application/20 text-blue-800 dark:text-blue-300",
   technology: "bg-layer-technology/20 text-green-800 dark:text-green-300",
   motivation: "bg-layer-motivation/20 text-purple-800 dark:text-purple-300",
+  strategy: "bg-orange-500/15 text-orange-800 dark:text-orange-300",
+  implementation: "bg-pink-500/15 text-pink-800 dark:text-pink-300",
+  physical: "bg-lime-600/15 text-lime-800 dark:text-lime-300",
 };
 
 export function kindLayer(registry: Registry | undefined, kind: string): string {

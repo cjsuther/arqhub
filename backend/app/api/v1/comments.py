@@ -18,7 +18,7 @@ def list_comments(db: DbDep, principal: PrincipalDep, slug: str):
 
 @router.post("/views/{slug}/comments", response_model=CommentRead, status_code=status.HTTP_201_CREATED)
 def add_comment(db: DbDep, slug: str, body: CommentCreate, principal=Depends(require_role("viewer"))):
-    return comments.create_comment(db, principal, slug, body.body)
+    return comments.create_comment(db, principal, slug, body.body, body.mentions)
 
 
 @router.delete("/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)

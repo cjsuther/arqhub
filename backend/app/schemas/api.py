@@ -119,6 +119,7 @@ class ViewRead(BaseModel):
 # --- Comments ----------------------------------------------------------------
 class CommentCreate(BaseModel):
     body: str
+    mentions: list[str] = []  # user ids mentioned (notified)
 
 
 class CommentRead(BaseModel):

@@ -80,8 +80,8 @@ export const api = {
   diffVersions: (slug: string, from: number, to: number) =>
     http<ModelDiff>(`/views/${slug}/diff${qs({ from: String(from), to: String(to) })}`),
   listComments: (slug: string) => http<Comment[]>(`/views/${slug}/comments`),
-  addComment: (slug: string, body: string) =>
-    http<Comment>(`/views/${slug}/comments`, { method: "POST", body: JSON.stringify({ body }) }),
+  addComment: (slug: string, body: string, mentions: string[] = []) =>
+    http<Comment>(`/views/${slug}/comments`, { method: "POST", body: JSON.stringify({ body, mentions }) }),
   deleteComment: (id: string) => http<void>(`/comments/${id}`, { method: "DELETE" }),
   putLayout: (slug: string, nodes: LayoutNode[]) =>
     http<void>(`/views/${slug}/layout`, { method: "PUT", body: JSON.stringify({ nodes }) }),

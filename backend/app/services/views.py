@@ -74,14 +74,29 @@ def get_view_shares(db, tenant_id: str, slug: str) -> list[str]:
 
 
 def set_view_shares(db, principal: Principal, slug: str, user_ids: list[str]) -> list[str]:
+    from .notifications import get_notifier
+
     row = _get_view_row(db, principal.tenant_id, slug)
+    previous = set(db.scalars(select(ViewShare.user_id).where(ViewShare.view_id == row.id)).all())
     valid = set(db.scalars(select(User.id).where(User.tenant_id == principal.tenant_id)).all())
     db.execute(delete(ViewShare).where(ViewShare.view_id == row.id))
+    kept: list[str] = []
     for uid in dict.fromkeys(user_ids):
         if uid in valid and uid != row.created_by:
             db.add(ViewShare(tenant_id=principal.tenant_id, view_id=row.id, user_id=uid))
+            kept.append(uid)
     write_audit(db, principal, action="share", entity="view", entity_id=slug, payload={"users": user_ids})
     db.commit()
+
+    # Notify only the newly-added users.
+    added = [u for u in kept if u not in previous]
+    if added:
+        names = {u.id: u.display_name for u in db.scalars(select(User).where(User.tenant_id == principal.tenant_id)).all()}
+        get_notifier().draft_shared(
+            view_slug=slug, view_name=row.name,
+            shared_by=names.get(principal.user_id, principal.email),
+            users=[names.get(u, u) for u in added],
+        )
     return get_view_shares(db, principal.tenant_id, slug)
 
 
