@@ -160,7 +160,14 @@ def _decide(db, principal, approval_id, *, decision: str, comment) -> ApprovalRe
     db.flush()
 
     decisions = db.scalars(select(ApprovalDecision).where(ApprovalDecision.approval_id == ar.id)).all()
-    ar.status = _recompute_status(decisions, _approver_ids(db, principal.tenant_id, list(ar.approvers or [])))
+    if principal.role == "admin":
+        # Admin override: an administrator's decision resolves the request outright,
+        # regardless of the designated approvers (authority + escape hatch).
+        ar.status = "rejected" if decision == "rejected" else "approved"
+    else:
+        ar.status = _recompute_status(
+            decisions, _approver_ids(db, principal.tenant_id, list(ar.approvers or []))
+        )
 
     view = db.get(View, ar.view_id)
     if ar.status in ("approved", "rejected"):

@@ -76,6 +76,14 @@ def test_reject_sends_view_to_draft_with_author(ctx):
     assert v.status_changed_at is not None
 
 
+def test_admin_override_approves_immediately(ctx):
+    db, tenant, p, admin, u1, u2 = ctx
+    ar = approvals.submit_review(db, p, "v1", [u1.id, u2.id], "revisen")
+    # p is an admin: their approval resolves the request without u1/u2 deciding.
+    r = approvals.approve(db, p, ar.id, "aprobado por admin")
+    assert r.status == "approved"
+
+
 def test_publish_records_status_author_and_date(ctx):
     db, tenant, p, admin, u1, u2 = ctx
     ar = approvals.submit_review(db, p, "v1", [u1.id], "revisá")
