@@ -1,5 +1,6 @@
 // Thin typed API client. All calls go through the Vite proxy to the backend.
 import type {
+  AppNotification,
   Approval,
   Comment,
   Element,
@@ -116,6 +117,13 @@ export const api = {
     http<Approval>(`/approvals/${id}/reject`, { method: "POST", body: JSON.stringify({ comment }) }),
 
   analyze: () => http<Finding[]>("/analysis"),
+
+  // Notifications (SPEC §11)
+  listNotifications: (unreadOnly = false) =>
+    http<AppNotification[]>(`/notifications${qs({ unread_only: unreadOnly ? "true" : undefined })}`),
+  unreadCount: () => http<number>("/notifications/unread-count"),
+  markNotificationRead: (id: string) => http<void>(`/notifications/${id}/read`, { method: "POST" }),
+  markAllNotificationsRead: () => http<void>("/notifications/read-all", { method: "POST" }),
 
   listUsers: (role?: string) => http<User[]>(`/users${qs({ role })}`),
   getMe: () => http<User>("/users/me"),

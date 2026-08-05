@@ -87,6 +87,16 @@ export interface Comment {
   created_at: string;
 }
 
+export interface AppNotification {
+  id: string;
+  kind: string;
+  title: string;
+  body: string;
+  view_slug: string | null;
+  read: boolean;
+  created_at: string;
+}
+
 export interface RegistryKind {
   layer: string;
   mappings: Record<Lang, string | null>;

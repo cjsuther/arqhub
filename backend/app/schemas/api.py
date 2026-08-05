@@ -231,6 +231,17 @@ class IdList(BaseModel):
     ids: list[str] = []
 
 
+# --- Notifications (SPEC §11) ------------------------------------------------
+class NotificationRead(BaseModel):
+    id: str
+    kind: str
+    title: str
+    body: str
+    view_slug: str | None = None
+    read: bool
+    created_at: str
+
+
 # --- Registry: custom component kinds (SPEC §4.2) ----------------------------
 class KindCreate(BaseModel):
     key: str

@@ -74,7 +74,7 @@ def get_view_shares(db, tenant_id: str, slug: str) -> list[str]:
 
 
 def set_view_shares(db, principal: Principal, slug: str, user_ids: list[str]) -> list[str]:
-    from .notifications import get_notifier
+    from .notifications import get_notifier, store
 
     row = _get_view_row(db, principal.tenant_id, slug)
     previous = set(db.scalars(select(ViewShare.user_id).where(ViewShare.view_id == row.id)).all())
@@ -96,6 +96,12 @@ def set_view_shares(db, principal: Principal, slug: str, user_ids: list[str]) ->
             view_slug=slug, view_name=row.name,
             shared_by=names.get(principal.user_id, principal.email),
             users=[names.get(u, u) for u in added],
+        )
+        store.record(
+            db, principal.tenant_id, added,
+            kind="draft_shared", title=f"Compartieron un borrador: {row.name}",
+            body=f"{names.get(principal.user_id, principal.email)} te compartió este borrador.",
+            view_slug=slug,
         )
     return get_view_shares(db, principal.tenant_id, slug)
 

@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import {
-  Boxes, CheckSquare, LayoutGrid, Menu, Moon, Network, Search, Shapes, Sparkles, Sun, Users,
+  Bell, Boxes, CheckSquare, LayoutGrid, Menu, Moon, Network, Search, Shapes, Sparkles, Sun, Users,
 } from "lucide-react";
 import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { api } from "../lib/api";
 import { useTheme } from "./theme";
@@ -22,7 +22,11 @@ const ROLE_LABEL: Record<string, string> = {
 
 export function AppLayout() {
   const { theme, toggle } = useTheme();
+  const navigate = useNavigate();
   const me = useQuery({ queryKey: ["me"], queryFn: api.getMe });
+  const unread = useQuery({
+    queryKey: ["notifications", "count"], queryFn: api.unreadCount, refetchInterval: 30_000,
+  });
   const nav = me.data?.role === "admin" ? [...NAV, { to: "/users", label: "Usuarios", icon: Users }] : NAV;
 
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("arqhub:sidebar:collapsed") === "1");
@@ -62,6 +66,14 @@ export function AppLayout() {
             <input className="input w-full pl-8" placeholder="Buscar…  (⌘K)" disabled />
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <button className="btn btn-ghost relative" onClick={() => navigate("/notifications")} title="Notificaciones">
+              <Bell size={16} />
+              {!!unread.data && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-medium text-white">
+                  {unread.data > 9 ? "9+" : unread.data}
+                </span>
+              )}
+            </button>
             <button className="btn btn-ghost" onClick={toggle} title="Cambiar tema">
               {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             </button>

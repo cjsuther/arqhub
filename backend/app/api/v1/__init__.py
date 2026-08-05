@@ -12,6 +12,7 @@ from . import (
     folders,
     groups,
     meta,
+    notifications,
     relationships,
     users,
     views,
@@ -30,3 +31,4 @@ router.include_router(users.router)
 router.include_router(folders.router)
 router.include_router(groups.router)
 router.include_router(comments.router)
+router.include_router(notifications.router)

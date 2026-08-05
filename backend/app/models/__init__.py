@@ -2,7 +2,17 @@
 
 from .base import Base
 from .governance import ApprovalDecision, ApprovalRequest, AuditLog
-from .model import Comment, CustomKind, Element, ModelVersion, Relationship, View, ViewLayout, ViewShare
+from .model import (
+    Comment,
+    CustomKind,
+    Element,
+    ModelVersion,
+    Notification,
+    Relationship,
+    View,
+    ViewLayout,
+    ViewShare,
+)
 from .org import Domain, Folder, Group, GroupFolder, Tenant, User, UserGroup
 
 __all__ = [
@@ -18,6 +28,7 @@ __all__ = [
     "Group",
     "GroupFolder",
     "ModelVersion",
+    "Notification",
     "Relationship",
     "Tenant",
     "User",

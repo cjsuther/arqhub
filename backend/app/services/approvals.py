@@ -23,7 +23,7 @@ from ..core.deps import write_audit
 from ..models import ApprovalDecision, ApprovalRequest, User, View
 from ..schemas.api import ApprovalDecisionRead, ApprovalRead, ViewRead
 from . import views as views_service
-from .notifications import get_notifier
+from .notifications import get_notifier, store
 
 
 def _now() -> datetime:
@@ -96,6 +96,11 @@ def submit_review(
     get_notifier().approval_requested(
         view_slug=slug, view_name=row.name, requested_by=principal.email,
         approvers=approvers, comment=comment,
+    )
+    store.record(
+        db, principal.tenant_id, _approver_ids(db, principal.tenant_id, approvers),
+        kind="approval_requested", title=f"Solicitud de aprobación: {row.name}",
+        body=comment or "", view_slug=slug,
     )
     return _to_read(db, principal.tenant_id, ar)
 
@@ -185,6 +190,13 @@ def _decide(db, principal, approval_id, *, decision: str, comment) -> ApprovalRe
         view_slug=view.slug if view else "?", view_name=view.name if view else "?",
         status=decision, resolved_by=principal.email, requested_by=ar.requested_by,
     )
+    if ar.status in ("approved", "rejected") and ar.requested_by and view is not None:
+        label = "aprobada" if ar.status == "approved" else "rechazada"
+        store.record(
+            db, principal.tenant_id, [ar.requested_by],
+            kind="approval_resolved", title=f"Revisión {label}: {view.name}",
+            body=comment.strip(), view_slug=view.slug,
+        )
     return _to_read(db, principal.tenant_id, ar)
 
 

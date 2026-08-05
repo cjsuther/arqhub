@@ -33,7 +33,7 @@ def list_comments(db, tenant_id: str, slug: str) -> list[CommentRead]:
 
 
 def create_comment(db, principal: Principal, slug: str, body: str, mentions: list[str] | None = None) -> CommentRead:
-    from .notifications import get_notifier
+    from .notifications import get_notifier, store
 
     view = views_service._get_view_row(db, principal.tenant_id, slug)
     text = (body or "").strip()
@@ -48,12 +48,17 @@ def create_comment(db, principal: Principal, slug: str, body: str, mentions: lis
     names = {u.id: u.display_name for u in db.scalars(select(User).where(User.tenant_id == principal.tenant_id)).all()}
 
     # Notify mentioned users (excluding the author).
-    mentioned_names = [names[uid] for uid in (mentions or []) if uid in names and uid != principal.user_id]
-    if mentioned_names:
+    mentioned_ids = [uid for uid in (mentions or []) if uid in names and uid != principal.user_id]
+    if mentioned_ids:
         get_notifier().comment_mention(
             view_slug=slug, view_name=view.name,
             comment_by=names.get(principal.user_id, principal.email),
-            mentioned=mentioned_names, body=text,
+            mentioned=[names[uid] for uid in mentioned_ids], body=text,
+        )
+        store.record(
+            db, principal.tenant_id, mentioned_ids,
+            kind="comment_mention", title=f"Te mencionaron en {view.name}",
+            body=text, view_slug=slug,
         )
     return _to_read(names, c)
 

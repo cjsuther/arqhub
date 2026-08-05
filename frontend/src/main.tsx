@@ -11,6 +11,7 @@ import { ApprovalsPage } from "./features/approvals/ApprovalsPage";
 import { CatalogPage } from "./features/catalog/CatalogPage";
 import { ElementDetailPage } from "./features/catalog/ElementDetailPage";
 import { MappingsPage } from "./features/mappings/MappingsPage";
+import { NotificationsPage } from "./features/notifications/NotificationsPage";
 import { UsersPage } from "./features/users/UsersPage";
 import { ViewsPage } from "./features/views/ViewsPage";
 
@@ -30,6 +31,7 @@ const router = createBrowserRouter([
       { path: "approvals", element: <ApprovalsPage /> },
       { path: "analysis", element: <AnalysisPage /> },
       { path: "mappings", element: <MappingsPage /> },
+      { path: "notifications", element: <NotificationsPage /> },
       { path: "users", element: <UsersPage /> },
     ],
   },

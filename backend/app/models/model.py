@@ -101,6 +101,20 @@ class ViewShare(Base, PkMixin, TenantMixin, TimestampMixin):
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
 
 
+class Notification(Base, PkMixin, TenantMixin, TimestampMixin):
+    """A per-recipient in-app notification (SPEC §11). Delivery to Teams/etc is
+    separate; this is the persisted feed the user sees in the app."""
+
+    __tablename__ = "notifications"
+
+    user_id: Mapped[str] = mapped_column(String(36), index=True)  # recipient
+    kind: Mapped[str] = mapped_column(String(32))  # approval_requested|approval_resolved|comment_mention|draft_shared
+    title: Mapped[str] = mapped_column(String(255))
+    body: Mapped[str] = mapped_column(String(1024), default="")
+    view_slug: Mapped[str | None] = mapped_column(String(128), default=None)
+    read: Mapped[bool] = mapped_column(default=False, index=True)
+
+
 class CustomKind(Base, PkMixin, TimestampMixin):
     """A user-defined component kind extending the registry matrix (SPEC §4.2).
 
