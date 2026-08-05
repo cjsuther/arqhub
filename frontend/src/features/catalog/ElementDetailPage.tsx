@@ -1,14 +1,23 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, ArrowLeftRight } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
+import { FolderSelect } from "../../components/FolderSelect";
 import { api } from "../../lib/api";
 import { KindBadge, LifecycleBadge, StatusBadge, langLabel } from "../../lib/ui";
 
 export function ElementDetailPage() {
   const { slug = "" } = useParams();
+  const qc = useQueryClient();
   const registry = useQuery({ queryKey: ["registry"], queryFn: api.registry });
   const element = useQuery({ queryKey: ["element", slug], queryFn: () => api.getElement(slug) });
+  const moveFolder = useMutation({
+    mutationFn: (folderId: string | null) => api.setElementFolder(slug, folderId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["element", slug] });
+      qc.invalidateQueries({ queryKey: ["elements"] });
+    },
+  });
   const relationships = useQuery({ queryKey: ["relationships"], queryFn: api.listRelationships });
   const views = useQuery({ queryKey: ["views"], queryFn: api.listViews });
 
@@ -45,6 +54,11 @@ export function ElementDetailPage() {
                 ))}
               </div>
             )}
+            <div className="mt-3 flex items-center gap-2 text-sm">
+              <span className="text-[hsl(var(--muted))]">Carpeta:</span>
+              <FolderSelect scope="element" value={el.folder_id}
+                onChange={(id) => moveFolder.mutate(id)} className="input !py-1 text-sm" />
+            </div>
           </div>
 
           <section className="surface rounded-lg border p-4">

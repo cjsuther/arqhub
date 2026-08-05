@@ -14,6 +14,10 @@ const PROSE =
 // (keeps the bundle small and avoids the corporate npm proxy). Stores HTML.
 function RichTextEditor({ initial, onChange }: { initial: string; onChange: (html: string) => void }) {
   const ref = useRef<HTMLDivElement>(null);
+  // Freeze the initial HTML at mount so React never re-applies it on re-render;
+  // otherwise dangerouslySetInnerHTML resets the caret to the start on each
+  // keystroke and text comes out reversed.
+  const frozen = useRef(initial);
 
   function exec(cmd: string, arg?: string) {
     ref.current?.focus();
@@ -50,7 +54,7 @@ function RichTextEditor({ initial, onChange }: { initial: string; onChange: (htm
         contentEditable
         suppressContentEditableWarning
         className={`min-h-48 flex-1 overflow-auto p-3 text-sm focus:outline-none ${PROSE}`}
-        dangerouslySetInnerHTML={{ __html: initial }}
+        dangerouslySetInnerHTML={{ __html: frozen.current }}
         onInput={(e) => onChange(e.currentTarget.innerHTML)}
       />
     </div>

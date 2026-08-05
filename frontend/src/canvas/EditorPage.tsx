@@ -23,6 +23,7 @@ import type { Element, Lifecycle } from "../lib/types";
 import { StatusBadge, formatDate, langLabel } from "../lib/ui";
 import { ArchiMateNode, type NodeStyleOverride } from "./ArchiMateNode";
 import { CanvasContextMenu, type MenuTarget } from "./CanvasContextMenu";
+import { FolderSelect } from "../components/FolderSelect";
 import { CommentsPanel } from "./CommentsPanel";
 import { DocModal } from "./DocModal";
 import { VersionsModal } from "./VersionsModal";
@@ -382,6 +383,12 @@ function EditorInner() {
     refetch();
   }
 
+  async function moveViewFolder(folderId: string | null) {
+    await api.setViewFolder(slug, folderId);
+    qc.invalidateQueries({ queryKey: ["views"] });
+    refetch();
+  }
+
   async function organize() {
     const vgd = viewGraph.data;
     const reg = registry.data;
@@ -413,6 +420,10 @@ function EditorInner() {
             {vg && `${langLabel(vg.view.lang)} · v${vg.view.current_version}`}
           </div>
         </div>
+        {vg && (
+          <FolderSelect scope="view" value={vg.view.folder_id} onChange={moveViewFolder}
+            className="input !py-1 text-xs max-w-40" />
+        )}
         {vg && (
           <div className="flex flex-col leading-tight">
             <StatusBadge value={vg.view.status} />
