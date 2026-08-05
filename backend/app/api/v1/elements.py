@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Response, status
 
 from ...core.deps import DbDep, PrincipalDep, require_role
-from ...schemas.api import ElementCreate, ElementRead, ElementUpdate
+from ...schemas.api import ElementCreate, ElementRead, ElementUpdate, FolderAssign
 from ...services import catalog, graph_ops
 from ...services.graph_ops import ImpactResult
 
@@ -52,6 +52,11 @@ def create_element(db: DbDep, payload: ElementCreate, principal=Depends(require_
 @router.patch("/{slug}", response_model=ElementRead)
 def update_element(db: DbDep, slug: str, payload: ElementUpdate, principal=Depends(require_role("editor"))):
     return catalog.update_element(db, principal, slug, payload)
+
+
+@router.patch("/{slug}/folder", response_model=ElementRead)
+def set_folder(db: DbDep, slug: str, body: FolderAssign, principal=Depends(require_role("editor"))):
+    return catalog.set_element_folder(db, principal, slug, body.folder_id)
 
 
 @router.delete("/{slug}", status_code=status.HTTP_204_NO_CONTENT)

@@ -16,6 +16,14 @@ export interface Element {
   tags: string[];
   properties: Record<string, string>;
   mappings: Record<string, string>;
+  folder_id: string | null;
+}
+
+export interface Folder {
+  id: string;
+  name: string;
+  scope: "element" | "view";
+  parent_id: string | null;
 }
 
 export interface Relationship {
@@ -35,6 +43,43 @@ export interface View {
   include: { elements: string[]; relations: string[] | "auto" };
   status: ViewStatus;
   current_version: number;
+  folder_id: string | null;
+  notes: string | null;
+}
+
+export interface Version {
+  version: number;
+  scope: string;
+  scope_id: string | null;
+  message: string | null;
+}
+
+export interface FieldChange {
+  field: string;
+  before: unknown;
+  after: unknown;
+}
+export interface ModifiedEntry {
+  id: string;
+  changes: FieldChange[];
+}
+export interface EntityDiff {
+  added: string[];
+  removed: string[];
+  modified: ModifiedEntry[];
+}
+export interface ModelDiff {
+  elements: EntityDiff;
+  relations: EntityDiff;
+  views: EntityDiff;
+}
+
+export interface Comment {
+  id: string;
+  body: string;
+  author_id: string | null;
+  author_name: string | null;
+  created_at: string;
 }
 
 export interface RegistryKind {
@@ -56,6 +101,7 @@ export interface LayoutNode {
   y: number;
   w: number;
   h: number;
+  parent?: string | null;
   style: Record<string, unknown>;
 }
 
@@ -85,9 +131,13 @@ export interface Approval {
   id: string;
   view_slug: string;
   view_version: number;
+  view_status: ViewStatus;
   status: "pending" | "approved" | "rejected" | "cancelled";
   requested_by: string | null;
+  requested_by_name: string | null;
   approvers: string[];
+  approver_names: string[];
   resolved_by: string | null;
+  resolved_by_name: string | null;
   comment: string | null;
 }

@@ -1,12 +1,16 @@
 // Thin typed API client. All calls go through the Vite proxy to the backend.
 import type {
   Approval,
+  Comment,
   Element,
   Finding,
+  Folder,
   LayoutNode,
+  ModelDiff,
   Registry,
   Relationship,
   User,
+  Version,
   View,
   ViewGraph,
 } from "./types";
@@ -51,6 +55,10 @@ export const api = {
   listRelationships: () => http<Relationship[]>("/relationships"),
   createRelationship: (body: { from: string; to: string; kind: string; label?: string }) =>
     http<Relationship>("/relationships", { method: "POST", body: JSON.stringify(body) }),
+  updateRelationship: (slug: string, body: { label?: string | null }) =>
+    http<Relationship>(`/relationships/${slug}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteRelationship: (slug: string) =>
+    http<void>(`/relationships/${slug}`, { method: "DELETE" }),
 
   listViews: () => http<View[]>("/views"),
   getView: (slug: string) => http<View>(`/views/${slug}`),
@@ -60,6 +68,17 @@ export const api = {
       body: JSON.stringify({ ...body, include: { elements: [], relations: "auto" } }),
     }),
   getViewGraph: (slug: string) => http<ViewGraph>(`/views/${slug}/graph`),
+  updateViewNotes: (slug: string, notes: string) =>
+    http<View>(`/views/${slug}`, { method: "PATCH", body: JSON.stringify({ notes }) }),
+  listVersions: (slug: string) => http<Version[]>(`/views/${slug}/versions`),
+  createVersion: (slug: string, message: string) =>
+    http<Version>(`/views/${slug}/versions`, { method: "POST", body: JSON.stringify({ message }) }),
+  diffVersions: (slug: string, from: number, to: number) =>
+    http<ModelDiff>(`/views/${slug}/diff${qs({ from: String(from), to: String(to) })}`),
+  listComments: (slug: string) => http<Comment[]>(`/views/${slug}/comments`),
+  addComment: (slug: string, body: string) =>
+    http<Comment>(`/views/${slug}/comments`, { method: "POST", body: JSON.stringify({ body }) }),
+  deleteComment: (id: string) => http<void>(`/comments/${id}`, { method: "DELETE" }),
   putLayout: (slug: string, nodes: LayoutNode[]) =>
     http<void>(`/views/${slug}/layout`, { method: "PUT", body: JSON.stringify({ nodes }) }),
   addElementsToView: (slug: string, view: View, elements: string[]) => {
@@ -67,6 +86,13 @@ export const api = {
     return http<View>(`/views/${slug}`, {
       method: "PATCH",
       body: JSON.stringify({ include: { ...view.include, elements: merged } }),
+    });
+  },
+  removeElementFromView: (slug: string, view: View, element: string) => {
+    const kept = view.include.elements.filter((e) => e !== element);
+    return http<View>(`/views/${slug}`, {
+      method: "PATCH",
+      body: JSON.stringify({ include: { ...view.include, elements: kept } }),
     });
   },
 
@@ -88,4 +114,16 @@ export const api = {
   analyze: () => http<Finding[]>("/analysis"),
 
   listUsers: (role?: string) => http<User[]>(`/users${qs({ role })}`),
+
+  // Folders (SPEC §8.1)
+  listFolders: (scope: "element" | "view") => http<Folder[]>(`/folders${qs({ scope })}`),
+  createFolder: (body: { name: string; scope: "element" | "view"; parent_id?: string | null }) =>
+    http<Folder>("/folders", { method: "POST", body: JSON.stringify(body) }),
+  updateFolder: (id: string, body: { name?: string; parent_id?: string | null }) =>
+    http<Folder>(`/folders/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteFolder: (id: string) => http<void>(`/folders/${id}`, { method: "DELETE" }),
+  setElementFolder: (slug: string, folder_id: string | null) =>
+    http<Element>(`/elements/${slug}/folder`, { method: "PATCH", body: JSON.stringify({ folder_id }) }),
+  setViewFolder: (slug: string, folder_id: string | null) =>
+    http<View>(`/views/${slug}/folder`, { method: "PATCH", body: JSON.stringify({ folder_id }) }),
 };

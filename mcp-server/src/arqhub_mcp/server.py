@@ -10,11 +10,11 @@ are deliberately absent. Every mutation is audited server-side as actor_type=mcp
 
 from __future__ import annotations
 
-from mcp.server import MCPServer
+from mcp.server.fastmcp import FastMCP
 
 from .client import ArqHubClient
 
-mcp = MCPServer("arqhub")
+mcp = FastMCP("arqhub")
 api = ArqHubClient()
 
 
@@ -123,7 +123,22 @@ def propose_optimization() -> list[dict]:
 
 
 def main() -> None:
-    mcp.run()  # stdio transport; use mcp.run(transport="streamable-http") for remote
+    """Run the server.
+
+    Default transport is stdio (Claude Code launches the process). Set
+    ARQHUB_MCP_TRANSPORT=http to run a pre-started streamable-HTTP server instead
+    — useful on slow machines where per-launch cold start exceeds the client's
+    startup timeout. Then point the client at http://host:port/mcp.
+    """
+    import os
+
+    transport = os.environ.get("ARQHUB_MCP_TRANSPORT", "stdio").lower()
+    if transport in ("http", "streamable-http", "sse"):
+        mcp.settings.host = os.environ.get("ARQHUB_MCP_HOST", "127.0.0.1")
+        mcp.settings.port = int(os.environ.get("ARQHUB_MCP_PORT", "8931"))
+        mcp.run(transport="sse" if transport == "sse" else "streamable-http")
+    else:
+        mcp.run()
 
 
 if __name__ == "__main__":

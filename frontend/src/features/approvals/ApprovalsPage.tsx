@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, X } from "lucide-react";
+import { Check, Rocket, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { api } from "../../lib/api";
+import { StatusBadge } from "../../lib/ui";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Pendiente",
@@ -15,17 +16,29 @@ export function ApprovalsPage() {
   const qc = useQueryClient();
   const approvals = useQuery({ queryKey: ["approvals"], queryFn: () => api.listApprovals() });
 
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["approvals"] });
+    qc.invalidateQueries({ queryKey: ["views"] });
+  };
+
   const resolve = useMutation({
     mutationFn: ({ id, action }: { id: string; action: "approve" | "reject" }) =>
       action === "approve" ? api.approve(id) : api.reject(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["approvals"] }),
+    onSuccess: invalidate,
+  });
+
+  const publish = useMutation({
+    mutationFn: (slug: string) => api.publishView(slug),
+    onSuccess: invalidate,
   });
 
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold">Aprobaciones</h1>
-        <p className="text-sm text-[hsl(var(--muted))]">Solicitudes de revisión de vistas.</p>
+        <p className="text-sm text-[hsl(var(--muted))]">
+          Aprobar habilita la publicación; la vista recién pasa a <strong>Publicada</strong> con el botón Publicar.
+        </p>
       </div>
 
       {approvals.isError && <p className="text-sm text-red-500">Error al cargar.</p>}
@@ -36,7 +49,8 @@ export function ApprovalsPage() {
             <tr>
               <th className="px-4 py-2 font-medium">Vista</th>
               <th className="px-4 py-2 font-medium">Versión</th>
-              <th className="px-4 py-2 font-medium">Estado</th>
+              <th className="px-4 py-2 font-medium">Solicitud</th>
+              <th className="px-4 py-2 font-medium">Estado vista</th>
               <th className="px-4 py-2 font-medium">Solicitante</th>
               <th className="px-4 py-2" />
             </tr>
@@ -51,7 +65,8 @@ export function ApprovalsPage() {
                 </td>
                 <td className="px-4 py-2">v{a.view_version}</td>
                 <td className="px-4 py-2">{STATUS_LABEL[a.status] ?? a.status}</td>
-                <td className="px-4 py-2 text-[hsl(var(--muted))]">{a.requested_by ?? "—"}</td>
+                <td className="px-4 py-2"><StatusBadge value={a.view_status} /></td>
+                <td className="px-4 py-2 text-[hsl(var(--muted))]">{a.requested_by_name ?? "—"}</td>
                 <td className="px-4 py-2 text-right">
                   {a.status === "pending" && (
                     <div className="flex justify-end gap-1.5">
@@ -64,6 +79,12 @@ export function ApprovalsPage() {
                         <X size={14} /> Rechazar
                       </button>
                     </div>
+                  )}
+                  {a.status === "approved" && a.view_status !== "published" && (
+                    <button className="btn btn-primary !py-1" disabled={publish.isPending}
+                      onClick={() => publish.mutate(a.view_slug)}>
+                      <Rocket size={14} /> Publicar
+                    </button>
                   )}
                 </td>
               </tr>

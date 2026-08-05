@@ -26,6 +26,7 @@ class Element(Base, PkMixin, TenantMixin, TimestampMixin):
     tags: Mapped[list] = mapped_column(default=list)
     properties: Mapped[dict] = mapped_column(default=dict)
     mappings: Mapped[dict] = mapped_column(default=dict)
+    folder_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("folders.id"), default=None, index=True)
     deleted_at: Mapped[str | None] = mapped_column(String(32), default=None, index=True)
 
 
@@ -53,6 +54,9 @@ class View(Base, PkMixin, TenantMixin, TimestampMixin):
     include: Mapped[dict] = mapped_column(default=dict)  # {elements: [...], relations: auto|[...]}
     status: Mapped[str] = mapped_column(String(16), default="draft")  # draft|in_review|published|deprecated
     current_version: Mapped[int] = mapped_column(Integer, default=0)
+    folder_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("folders.id"), default=None, index=True)
+    # Rich-text documentation (HTML from the WYSIWYG editor), presentation-side.
+    notes: Mapped[str | None] = mapped_column(String, default=None)
 
 
 class ViewLayout(Base, PkMixin, TenantMixin, TimestampMixin):
@@ -66,7 +70,19 @@ class ViewLayout(Base, PkMixin, TenantMixin, TimestampMixin):
     y: Mapped[float] = mapped_column(default=0.0)
     w: Mapped[float] = mapped_column(default=0.0)
     h: Mapped[float] = mapped_column(default=0.0)
+    # Pool/lane the node is nested in (element slug), presentation-side (SPEC §8.2).
+    parent: Mapped[str | None] = mapped_column(String(128), default=None)
     style: Mapped[dict] = mapped_column(default=dict)
+
+
+class Comment(Base, PkMixin, TenantMixin, TimestampMixin):
+    """User comment thread on a view (SPEC §11 collaboration)."""
+
+    __tablename__ = "comments"
+
+    view_id: Mapped[str] = mapped_column(String(36), ForeignKey("views.id"), index=True)
+    author_id: Mapped[str | None] = mapped_column(String(36), default=None)
+    body: Mapped[str] = mapped_column(String)
 
 
 class ModelVersion(Base, PkMixin, TenantMixin, TimestampMixin):

@@ -31,3 +31,19 @@ class Domain(Base, PkMixin, TenantMixin, TimestampMixin):
     slug: Mapped[str] = mapped_column(String(64), index=True)
     name: Mapped[str] = mapped_column(String(255))
     ad_group_id: Mapped[str | None] = mapped_column(String(64), default=None)
+
+
+class Folder(Base, PkMixin, TenantMixin, TimestampMixin):
+    """Hierarchical folder for organising the catalog and views (presentation).
+
+    Two independent trees per tenant via ``scope`` ('element' | 'view'). Purely
+    organisational — not part of the semantic model / DSL.
+    """
+
+    __tablename__ = "folders"
+
+    name: Mapped[str] = mapped_column(String(255))
+    scope: Mapped[str] = mapped_column(String(16), index=True)  # element | view
+    parent_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("folders.id"), default=None, index=True
+    )

@@ -78,10 +78,15 @@ def export_view(db: Session, tenant_id: str, slug: str, fmt: str) -> tuple[str, 
     if view is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"View '{slug}' not found.")
 
-    if fmt == "svg":
-        return render_view_svg(graph, view), FORMATS[fmt]
-
     row = db.scalar(select(View).where(View.tenant_id == tenant_id, View.slug == slug))
+
+    if fmt == "svg":
+        layout = {
+            l.element_slug: {"x": l.x, "y": l.y, "w": l.w, "h": l.h, "parent": l.parent}
+            for l in db.query(ViewLayout).filter(ViewLayout.view_id == row.id).all()
+        }
+        return render_view_svg(graph, view, layout), FORMATS[fmt]
+
     els, rels = _subgraph(graph, view)
     positions = _positions(db, row.id, els)
 

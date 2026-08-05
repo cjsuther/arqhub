@@ -30,6 +30,7 @@ def _view_read(v: View) -> ViewRead:
     return ViewRead(
         slug=v.slug, name=v.name, lang=v.lang, viewpoint=v.viewpoint,
         include=v.include or {}, status=v.status, current_version=v.current_version,
+        folder_id=v.folder_id, notes=v.notes,
     )
 
 
@@ -49,12 +50,20 @@ def get_view(db, tenant_id: str, slug: str) -> ViewRead:
     return _view_read(_get_view_row(db, tenant_id, slug))
 
 
+def _layout_map(db, view_id: str) -> dict:
+    return {
+        l.element_slug: {"x": l.x, "y": l.y, "w": l.w, "h": l.h, "parent": l.parent}
+        for l in db.query(ViewLayout).filter(ViewLayout.view_id == view_id).all()
+    }
+
+
 def render_view(db, tenant_id: str, slug: str) -> str:
+    row = _get_view_row(db, tenant_id, slug)
     graph = load_graph(db, tenant_id)
     view = graph.views.get(slug)
     if view is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"View '{slug}' not found.")
-    return render_view_svg(graph, view)
+    return render_view_svg(graph, view, _layout_map(db, row.id))
 
 
 def get_view_graph(db, tenant_id: str, slug: str) -> ViewGraphRead:
@@ -63,7 +72,7 @@ def get_view_graph(db, tenant_id: str, slug: str) -> ViewGraphRead:
     graph = load_graph(db, tenant_id)
     sub = _view_subgraph(graph, graph.views[slug])
     layout = [
-        LayoutNode(element=l.element_slug, x=l.x, y=l.y, w=l.w, h=l.h, style=l.style or {})
+        LayoutNode(element=l.element_slug, x=l.x, y=l.y, w=l.w, h=l.h, parent=l.parent, style=l.style or {})
         for l in db.query(ViewLayout).filter(ViewLayout.view_id == row.id).all()
     ]
     return ViewGraphRead(
@@ -82,7 +91,7 @@ def put_layout(db, principal: Principal, slug: str, payload: LayoutPut) -> None:
         db.add(
             ViewLayout(
                 tenant_id=principal.tenant_id, view_id=row.id, element_slug=node.element,
-                x=node.x, y=node.y, w=node.w, h=node.h, style=node.style,
+                x=node.x, y=node.y, w=node.w, h=node.h, parent=node.parent, style=node.style,
             )
         )
     write_audit(db, principal, action="put_layout", entity="view", entity_id=slug,
@@ -110,13 +119,24 @@ def create_view(db, principal: Principal, payload: ViewCreate) -> ViewRead:
     return get_view(db, principal.tenant_id, payload.slug)
 
 
+def set_view_folder(db, principal: Principal, slug: str, folder_id: str | None) -> ViewRead:
+    row = _get_view_row(db, principal.tenant_id, slug)
+    row.folder_id = folder_id
+    write_audit(db, principal, action="move_folder", entity="view", entity_id=slug,
+                payload={"folder_id": folder_id})
+    db.commit()
+    return _view_read(row)
+
+
 def update_view(db, principal: Principal, slug: str, payload: ViewUpdate) -> ViewRead:
     row = _get_view_row(db, principal.tenant_id, slug)
     changes = payload.model_dump(exclude_none=True)
 
     # Editing an in-review view cancels its pending request and returns to draft
-    # (SPEC §11), unless the caller is explicitly changing the status.
-    if row.status == "in_review" and "status" not in changes:
+    # (SPEC §11), unless the caller is explicitly changing the status or only
+    # touching presentation-side documentation (notes never affect the model).
+    model_changes = {k for k in changes if k not in {"notes"}}
+    if row.status == "in_review" and "status" not in changes and model_changes:
         for ar in db.scalars(
             select(ApprovalRequest).where(
                 ApprovalRequest.view_id == row.id, ApprovalRequest.status == "pending"

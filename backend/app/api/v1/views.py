@@ -7,6 +7,7 @@ from fastapi import APIRouter, Body, Depends, Query, Response, status
 from ...core.deps import DbDep, PrincipalDep, require_role
 from ...schemas.api import (
     ApprovalRead,
+    FolderAssign,
     LayoutPut,
     SubmitReviewBody,
     ViewCreate,
@@ -39,6 +40,11 @@ def create_view(db: DbDep, payload: ViewCreate, principal=Depends(require_role("
 @router.patch("/{slug}", response_model=ViewRead)
 def update_view(db: DbDep, slug: str, payload: ViewUpdate, principal=Depends(require_role("editor"))):
     return views.update_view(db, principal, slug, payload)
+
+
+@router.patch("/{slug}/folder", response_model=ViewRead)
+def set_folder(db: DbDep, slug: str, body: FolderAssign, principal=Depends(require_role("editor"))):
+    return views.set_view_folder(db, principal, slug, body.folder_id)
 
 
 @router.get("/{slug}/render", response_class=Response)

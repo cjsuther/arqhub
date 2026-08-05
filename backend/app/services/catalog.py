@@ -7,15 +7,18 @@ inherits the same validation and audit path as a DSL import. Routers stay thin.
 from __future__ import annotations
 
 from fastapi import HTTPException, status
+from sqlalchemy import select
 
 from ..core.auth import Principal
 from ..core.deps import write_audit
+from ..models import Element as ElementRow
 from ..schemas.api import (
     ElementCreate,
     ElementRead,
     ElementUpdate,
     RelationshipCreate,
     RelationshipRead,
+    RelationshipUpdate,
 )
 from .dsl import ModelGraph, apply_document
 from .dsl.graph import Element as GraphElement
@@ -24,7 +27,14 @@ from .dsl.schema import DslDocument, ElementDef, PatchSection, RelationDef
 from .repository import load_graph, sync_graph
 
 
-def _element_read(el: GraphElement) -> ElementRead:
+def _folder_map(db, tenant_id: str) -> dict[str, str | None]:
+    rows = db.scalars(
+        select(ElementRow).where(ElementRow.tenant_id == tenant_id, ElementRow.deleted_at.is_(None))
+    ).all()
+    return {r.slug: r.folder_id for r in rows}
+
+
+def _element_read(el: GraphElement, folder_id: str | None = None) -> ElementRead:
     return ElementRead(
         slug=el.slug,
         name=el.name,
@@ -36,6 +46,7 @@ def _element_read(el: GraphElement) -> ElementRead:
         tags=list(el.tags),
         properties=dict(el.properties),
         mappings=dict(el.mappings),
+        folder_id=folder_id,
     )
 
 
@@ -69,6 +80,7 @@ def _apply(db, principal: Principal, patch: PatchSection, *, action: str, entity
 # --- Elements ----------------------------------------------------------------
 def list_elements(db, tenant_id: str, *, kind=None, domain=None, lifecycle=None, tag=None, q=None):
     graph = load_graph(db, tenant_id)
+    folders = _folder_map(db, tenant_id)
     out = []
     for el in graph.elements.values():
         if kind and el.kind != kind:
@@ -81,7 +93,7 @@ def list_elements(db, tenant_id: str, *, kind=None, domain=None, lifecycle=None,
             continue
         if q and q.lower() not in f"{el.slug} {el.name} {el.description or ''}".lower():
             continue
-        out.append(_element_read(el))
+        out.append(_element_read(el, folders.get(el.slug)))
     return out
 
 
@@ -90,7 +102,21 @@ def get_element(db, tenant_id: str, slug: str) -> ElementRead:
     el = graph.elements.get(slug)
     if el is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Element '{slug}' not found.")
-    return _element_read(el)
+    row = db.scalar(select(ElementRow).where(ElementRow.tenant_id == tenant_id, ElementRow.slug == slug))
+    return _element_read(el, row.folder_id if row else None)
+
+
+def set_element_folder(db, principal: Principal, slug: str, folder_id: str | None) -> ElementRead:
+    row = db.scalar(
+        select(ElementRow).where(ElementRow.tenant_id == principal.tenant_id, ElementRow.slug == slug)
+    )
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Element '{slug}' not found.")
+    row.folder_id = folder_id
+    write_audit(db, principal, action="move_folder", entity="element", entity_id=slug,
+                payload={"folder_id": folder_id})
+    db.commit()
+    return get_element(db, principal.tenant_id, slug)
 
 
 def create_element(db, principal: Principal, payload: ElementCreate) -> ElementRead:
@@ -158,6 +184,18 @@ def create_relationship(db, principal: Principal, payload: RelationshipCreate) -
     write_audit(db, principal, action="create", entity="relationship", entity_id=rid)
     db.commit()
     return _relation_read(result.graph.relations[rid])
+
+
+def update_relationship(db, principal: Principal, slug: str, payload: RelationshipUpdate) -> RelationshipRead:
+    graph = load_graph(db, principal.tenant_id)
+    if slug not in graph.relations:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Relationship '{slug}' not found.")
+    changes = payload.model_dump(exclude_none=True)
+    graph = _apply(
+        db, principal, PatchSection(update_relations={slug: changes}),
+        action="update", entity="relationship", entity_id=slug,
+    )
+    return _relation_read(graph.relations[slug])
 
 
 def delete_relationship(db, principal: Principal, slug: str) -> None:

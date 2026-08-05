@@ -1,14 +1,19 @@
 import {
   BaseEdge,
   EdgeLabelRenderer,
-  getSmoothStepPath,
+  useInternalNode,
   type Edge,
   type EdgeProps,
 } from "@xyflow/react";
 
+import { getEdgeParams } from "./floating";
+
 export interface RelEdgeData extends Record<string, unknown> {
   kind: string;
   label?: string | null;
+  parallelIndex?: number; // position among edges sharing the same node pair
+  parallelCount?: number; // how many edges share the pair
+  stroke?: string; // per-view colour override (context menu)
 }
 
 export type RelEdge = Edge<RelEdgeData, "relation">;
@@ -51,27 +56,51 @@ function relationVisual(kind: string): EdgeVisual {
   }
 }
 
-export function RelationEdge({
-  id,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
-  sourcePosition,
-  targetPosition,
-  data,
-}: EdgeProps<RelEdge>) {
-  const [path, labelX, labelY] = getSmoothStepPath({
-    sourceX,
-    sourceY,
-    targetX,
-    targetY,
-    sourcePosition,
-    targetPosition,
-    borderRadius: 8,
-  });
+const PARALLEL_SPACING = 28; // px between stacked edges of the same node pair
+
+export function RelationEdge(props: EdgeProps<RelEdge>) {
+  const { id, source, target, data } = props;
+  const sourceNode = useInternalNode(source);
+  const targetNode = useInternalNode(target);
+
+  // Floating endpoints (attach to the facing side); fall back to the handle-based
+  // coordinates React Flow provides until the nodes are measured, so an edge is
+  // never dropped.
+  let sx = props.sourceX;
+  let sy = props.sourceY;
+  let tx = props.targetX;
+  let ty = props.targetY;
+  if (sourceNode && targetNode) {
+    const p = getEdgeParams(sourceNode, targetNode);
+    sx = p.sx;
+    sy = p.sy;
+    tx = p.tx;
+    ty = p.ty;
+  }
+
+  // Separate parallel edges: bow each one by a perpendicular offset so multiple
+  // relations between the same two components don't overlap.
+  const count = data?.parallelCount ?? 1;
+  const index = data?.parallelIndex ?? 0;
+  const spread = (index - (count - 1) / 2) * PARALLEL_SPACING;
+
+  const mx = (sx + tx) / 2;
+  const my = (sy + ty) / 2;
+  const dx = tx - sx;
+  const dy = ty - sy;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len; // unit perpendicular
+  const ny = dx / len;
+  const cx = mx + nx * spread * 2;
+  const cy = my + ny * spread * 2;
+
+  const path = `M ${sx},${sy} Q ${cx},${cy} ${tx},${ty}`;
+  const labelX = mx + nx * spread;
+  const labelY = my + ny * spread;
+
   const kind = data?.kind ?? "association";
   const v = relationVisual(kind);
+  const stroke = data?.stroke || "#64748b";
   return (
     <>
       <BaseEdge
@@ -79,7 +108,7 @@ export function RelationEdge({
         path={path}
         markerEnd={v.markerEnd}
         markerStart={v.markerStart}
-        style={{ stroke: "#64748b", strokeWidth: 1.5, strokeDasharray: v.dash }}
+        style={{ stroke, strokeWidth: 1.5, strokeDasharray: v.dash }}
       />
       <EdgeLabelRenderer>
         <div

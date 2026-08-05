@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from ..core.auth import Principal
 from ..core.deps import write_audit
-from ..models import ApprovalRequest, View
+from ..models import ApprovalRequest, User, View
 from ..schemas.api import ApprovalRead, ViewRead
 from . import views as views_service
 from .notifications import get_notifier
@@ -30,12 +30,32 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _name_resolver(db: Session, tenant_id: str):
+    """Map a user id (or email) to a display name; identity if unknown."""
+    users = db.scalars(select(User).where(User.tenant_id == tenant_id)).all()
+    by_id = {u.id: u.display_name for u in users}
+    by_email = {u.email: u.display_name for u in users}
+
+    def resolve(ref: str | None) -> str | None:
+        if ref is None:
+            return None
+        return by_id.get(ref) or by_email.get(ref) or ref
+
+    return resolve
+
+
 def _to_read(db: Session, tenant_id: str, ar: ApprovalRequest) -> ApprovalRead:
     view = db.get(View, ar.view_id)
+    name = _name_resolver(db, tenant_id)
+    approvers = list(ar.approvers or [])
     return ApprovalRead(
         id=ar.id, view_slug=view.slug if view else "?", view_version=ar.view_version,
-        status=ar.status, requested_by=ar.requested_by, approvers=list(ar.approvers or []),
-        resolved_by=ar.resolved_by, comment=ar.comment,
+        view_status=view.status if view else "?",
+        status=ar.status,
+        requested_by=ar.requested_by, requested_by_name=name(ar.requested_by),
+        approvers=approvers, approver_names=[name(a) or a for a in approvers],
+        resolved_by=ar.resolved_by, resolved_by_name=name(ar.resolved_by),
+        comment=ar.comment,
     )
 
 

@@ -46,6 +46,7 @@ class ElementRead(BaseModel):
     tags: list[str]
     properties: dict
     mappings: dict
+    folder_id: str | None = None
 
 
 # --- Relationships -----------------------------------------------------------
@@ -58,6 +59,11 @@ class RelationshipCreate(BaseModel):
     properties: dict[str, str] = Field(default_factory=dict)
 
     model_config = {"populate_by_name": True}
+
+
+class RelationshipUpdate(BaseModel):
+    label: str | None = None
+    properties: dict[str, str] | None = None
 
 
 class RelationshipRead(BaseModel):
@@ -90,6 +96,7 @@ class ViewUpdate(BaseModel):
     viewpoint: str | None = None
     include: dict | None = None
     status: str | None = None
+    notes: str | None = None
 
 
 class ViewRead(BaseModel):
@@ -100,6 +107,44 @@ class ViewRead(BaseModel):
     include: dict
     status: str
     current_version: int
+    folder_id: str | None = None
+    notes: str | None = None
+
+
+# --- Comments ----------------------------------------------------------------
+class CommentCreate(BaseModel):
+    body: str
+
+
+class CommentRead(BaseModel):
+    id: str
+    body: str
+    author_id: str | None = None
+    author_name: str | None = None
+    created_at: str
+
+
+# --- Folders (hierarchical organisation, presentation) -----------------------
+class FolderCreate(BaseModel):
+    name: str
+    scope: str  # element | view
+    parent_id: str | None = None
+
+
+class FolderUpdate(BaseModel):
+    name: str | None = None
+    parent_id: str | None = None  # move; null = root
+
+
+class FolderRead(BaseModel):
+    id: str
+    name: str
+    scope: str
+    parent_id: str | None = None
+
+
+class FolderAssign(BaseModel):
+    folder_id: str | None = None  # null = move to root/unassigned
 
 
 class VersionRead(BaseModel):
@@ -116,6 +161,7 @@ class LayoutNode(BaseModel):
     y: float
     w: float = 0.0
     h: float = 0.0
+    parent: str | None = None  # pool/lane element slug this node is nested in
     style: dict = Field(default_factory=dict)
 
 
@@ -154,10 +200,14 @@ class ApprovalRead(BaseModel):
     id: str
     view_slug: str
     view_version: int
+    view_status: str  # borrador|in_review|published|deprecated of the target view
     status: str  # pending|approved|rejected|cancelled
-    requested_by: str | None
+    requested_by: str | None  # raw user id (kept for compatibility)
+    requested_by_name: str | None  # human-readable name for the UI
     approvers: list[str]
+    approver_names: list[str]
     resolved_by: str | None
+    resolved_by_name: str | None
     comment: str | None
 
 

@@ -19,6 +19,9 @@ dist/
 .env.*
 !.env.example
 
+# --- Local MCP config (machine-specific absolute paths) ---
+.mcp.json
+
 # --- Third-party reference material (copyrighted; not redistributed) ---
 defs/*.pdf
 defs/*.docx

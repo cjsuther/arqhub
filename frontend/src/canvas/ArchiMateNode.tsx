@@ -1,14 +1,37 @@
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import type { CSSProperties, ReactNode } from "react";
+import { Link2 } from "lucide-react";
+import { Fragment, type CSSProperties, type ReactNode } from "react";
 
 import type { Element, Lang } from "../lib/types";
+import { linkedView } from "./drilldown";
 import { kindIcon, layerStyle } from "./style";
+
+// Per-view presentation overrides set from the context menu (stored in the
+// view's layout, never in the model). Empty keys fall back to the layer/lang defaults.
+export interface NodeStyleOverride {
+  borderColor?: string;
+  background?: string;
+}
 
 export interface ArchiNodeData extends Record<string, unknown> {
   element: Element;
   layer: string;
   lang: Lang;
   projection: string | null; // concrete type in the view's language (registry)
+  style?: NodeStyleOverride;
+}
+
+// A small badge marking an element that drills down into another view.
+function NavBadge({ element }: { element: Element }) {
+  if (!linkedView(element)) return null;
+  return (
+    <span
+      title={`Navega a la vista «${linkedView(element)}» (doble clic)`}
+      className="absolute -right-2 -top-2 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-[hsl(var(--accent))] text-white shadow"
+    >
+      <Link2 size={10} />
+    </span>
+  );
 }
 
 export type ArchiNode = Node<ArchiNodeData, "archimate">;
@@ -21,10 +44,16 @@ const SIDES: [Position, string][] = [
 ];
 
 function Handles() {
+  // Each side carries both a source and a target handle so an edge can resolve
+  // an endpoint on any side (rendering) and a connection can start/end anywhere
+  // (ConnectionMode.Loose). The target handle sits under the source, invisible.
   return (
     <>
       {SIDES.map(([pos, id]) => (
-        <Handle key={id} id={id} type="source" position={pos} className="!h-2 !w-2 !bg-slate-400" />
+        <Fragment key={id}>
+          <Handle id={`${id}-t`} type="target" position={pos} className="!h-2.5 !w-2.5 !border-0 !bg-transparent" />
+          <Handle id={`${id}-s`} type="source" position={pos} className="!h-2 !w-2 !bg-slate-400" />
+        </Fragment>
       ))}
     </>
   );
@@ -44,14 +73,16 @@ export function ArchiMateNode(props: NodeProps<ArchiNode>) {
 function ArchimateShape({ data, selected }: NodeProps<ArchiNode>) {
   const { element, layer } = data;
   const s = layerStyle(layer);
+  const ov = data.style ?? {};
   const Icon = kindIcon(element.kind);
   const dep = element.lifecycle === "deprecated" || element.lifecycle === "retired";
   return (
     <div
       className="relative w-[180px] rounded-md border-2 px-3 py-2 shadow-sm"
-      style={{ background: s.bg, borderColor: selected ? "#1e293b" : s.border, color: s.text, opacity: dep ? 0.6 : 1 }}
+      style={{ background: ov.background ?? s.bg, borderColor: selected ? "#1e293b" : ov.borderColor ?? s.border, color: s.text, opacity: dep ? 0.6 : 1 }}
       title={element.description ?? element.name}
     >
+      <NavBadge element={element} />
       <Handles />
       <div className="flex items-center justify-between gap-1">
         <span className="truncate text-[10px] font-semibold uppercase tracking-wide opacity-70">{element.kind}</span>
@@ -65,11 +96,12 @@ function ArchimateShape({ data, selected }: NodeProps<ArchiNode>) {
 // --- BPMN: shape carries the meaning -----------------------------------------
 function BpmnShape({ data, selected }: NodeProps<ArchiNode>) {
   const { element, projection } = data;
+  const ov = data.style ?? {};
   const Icon = kindIcon(element.kind);
-  const border = selected ? "#1e293b" : BPMN.border;
+  const border = selected ? "#1e293b" : ov.borderColor ?? BPMN.border;
   const dep = element.lifecycle === "deprecated" || element.lifecycle === "retired";
   const wrap = "relative flex flex-col items-center";
-  const style = { background: BPMN.bg, borderColor: border, color: BPMN.text, opacity: dep ? 0.6 : 1 };
+  const style = { background: ov.background ?? BPMN.bg, borderColor: border, color: BPMN.text, opacity: dep ? 0.6 : 1 };
 
   if (projection === null) return <NoProjection element={element} selected={selected} label="BPMN" />;
 
@@ -77,6 +109,7 @@ function BpmnShape({ data, selected }: NodeProps<ArchiNode>) {
     return (
       <div className={wrap} style={{ opacity: dep ? 0.6 : 1 }}>
         <Handles />
+        <NavBadge element={element} />
         <div className="flex h-[54px] w-[54px] items-center justify-center rounded-full border-2" style={style}>
           <Icon size={18} />
         </div>
@@ -88,6 +121,7 @@ function BpmnShape({ data, selected }: NodeProps<ArchiNode>) {
     return (
       <div className={wrap} style={{ opacity: dep ? 0.6 : 1 }}>
         <Handles />
+        <NavBadge element={element} />
         <div className="flex h-[46px] w-[46px] rotate-45 items-center justify-center border-2" style={style}>
           <Icon size={16} className="-rotate-45" />
         </div>
@@ -99,6 +133,7 @@ function BpmnShape({ data, selected }: NodeProps<ArchiNode>) {
     return (
       <div className={wrap} style={{ opacity: dep ? 0.6 : 1 }}>
         <Handles />
+        <NavBadge element={element} />
         <DocumentShape style={style} />
         <Label>{element.name}</Label>
       </div>
@@ -122,6 +157,7 @@ function BpmnShape({ data, selected }: NodeProps<ArchiNode>) {
   return (
     <div className="relative w-[170px] rounded-xl border-2 px-3 py-2.5 shadow-sm" style={style}>
       <Handles />
+      <NavBadge element={element} />
       <div className="flex items-center gap-1.5">
         <Icon size={13} className="shrink-0 opacity-70" />
         <span className="line-clamp-2 text-[13px] font-semibold leading-tight">{element.name}</span>
@@ -133,9 +169,10 @@ function BpmnShape({ data, selected }: NodeProps<ArchiNode>) {
 // --- UML: component tabs, actor stickman, class compartments ------------------
 function UmlShape({ data, selected }: NodeProps<ArchiNode>) {
   const { element, projection } = data;
-  const border = selected ? "#1e293b" : UML.border;
+  const ov = data.style ?? {};
+  const border = selected ? "#1e293b" : ov.borderColor ?? UML.border;
   const dep = element.lifecycle === "deprecated" || element.lifecycle === "retired";
-  const style = { background: UML.bg, borderColor: border, color: UML.text, opacity: dep ? 0.6 : 1 };
+  const style = { background: ov.background ?? UML.bg, borderColor: border, color: UML.text, opacity: dep ? 0.6 : 1 };
 
   if (projection === null) return <NoProjection element={element} selected={selected} label="UML" />;
 
@@ -143,6 +180,7 @@ function UmlShape({ data, selected }: NodeProps<ArchiNode>) {
     return (
       <div className="relative flex flex-col items-center" style={{ opacity: dep ? 0.6 : 1 }}>
         <Handles />
+        <NavBadge element={element} />
         <svg width="34" height="46" viewBox="0 0 34 46" stroke={border} strokeWidth="2" fill="none">
           <circle cx="17" cy="8" r="6" />
           <line x1="17" y1="14" x2="17" y2="30" />
@@ -158,6 +196,7 @@ function UmlShape({ data, selected }: NodeProps<ArchiNode>) {
     return (
       <div className="relative flex flex-col items-center" style={{ opacity: dep ? 0.6 : 1 }}>
         <Handles />
+        <NavBadge element={element} />
         <div className="h-[42px] w-[42px] rotate-45 border-2" style={style} />
         <Label>{element.name}</Label>
       </div>
@@ -167,6 +206,7 @@ function UmlShape({ data, selected }: NodeProps<ArchiNode>) {
     return (
       <div className="relative w-[180px] rounded-sm border-2 py-2 pl-5 pr-3 shadow-sm" style={style}>
         <Handles />
+        <NavBadge element={element} />
         {/* component tabs on the left edge */}
         <span className="absolute -left-[6px] top-3 h-2.5 w-3 border-2" style={{ background: UML.bg, borderColor: border }} />
         <span className="absolute -left-[6px] top-7 h-2.5 w-3 border-2" style={{ background: UML.bg, borderColor: border }} />
@@ -179,6 +219,7 @@ function UmlShape({ data, selected }: NodeProps<ArchiNode>) {
     return (
       <div className="relative w-[180px] rounded-sm border-2 shadow-sm" style={style}>
         <Handles />
+        <NavBadge element={element} />
         <div className="border-b px-2 py-1.5 text-center text-[13px] font-semibold leading-tight" style={{ borderColor: border }}>
           {element.name}
         </div>
@@ -191,6 +232,7 @@ function UmlShape({ data, selected }: NodeProps<ArchiNode>) {
   return (
     <div className="relative w-[180px] rounded-sm border-2 px-3 py-2 shadow-sm" style={style}>
       <Handles />
+      <NavBadge element={element} />
       <div className="text-center text-[10px] italic text-slate-500">«{(projection ?? element.kind).toLowerCase()}»</div>
       <div className="line-clamp-2 text-center text-[13px] font-semibold leading-tight">{element.name}</div>
     </div>
