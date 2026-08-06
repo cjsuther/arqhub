@@ -71,3 +71,38 @@ def test_delete_other_user(ctx):
     u = users.create_user(db, p, UserCreate(email="ana@x.com", display_name="Ana", role="viewer"))
     users.delete_user(db, p, u.id)
     assert len(users.list_users(db, p.tenant_id)) == 1
+
+
+def test_update_email_and_name(ctx):
+    db, p, _ = ctx
+    u = users.create_user(db, p, UserCreate(email="ana@x.com", display_name="Ana", role="viewer"))
+    updated = users.update_user(db, p, u.id, UserUpdate(email="ANA.g@X.com", display_name="Ana G."))
+    assert updated.email == "ana.g@x.com" and updated.display_name == "Ana G."
+
+
+def test_update_email_conflict(ctx):
+    db, p, admin = ctx
+    u = users.create_user(db, p, UserCreate(email="ana@x.com", display_name="Ana", role="viewer"))
+    with pytest.raises(Exception):
+        users.update_user(db, p, u.id, UserUpdate(email=admin.email.upper()))
+
+
+def test_update_email_cannot_be_blank(ctx):
+    db, p, _ = ctx
+    u = users.create_user(db, p, UserCreate(email="ana@x.com", display_name="Ana", role="viewer"))
+    with pytest.raises(Exception):
+        users.update_user(db, p, u.id, UserUpdate(email="   "))
+
+
+def test_create_requires_email(ctx):
+    db, p, _ = ctx
+    with pytest.raises(Exception):
+        users.create_user(db, p, UserCreate(email="  ", display_name="X", role="viewer"))
+
+
+def test_get_user_and_me(ctx):
+    db, p, admin = ctx
+    assert users.get_me(db, p).id == admin.id
+    assert users.get_user(db, p.tenant_id, admin.id).email == admin.email
+    with pytest.raises(Exception):
+        users.get_user(db, p.tenant_id, "ghost")

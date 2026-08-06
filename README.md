@@ -15,7 +15,8 @@
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL">
   <img src="https://img.shields.io/badge/MCP-nativo-A855F7" alt="MCP">
-  <img src="https://img.shields.io/badge/tests-88%20passing-3FB950?logo=pytest&logoColor=white" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-107%20passing-3FB950?logo=pytest&logoColor=white" alt="Tests">
+  <img src="https://img.shields.io/badge/coverage-91%25-3FB950" alt="Coverage">
 </p>
 
 ---
@@ -136,7 +137,8 @@ docker compose up
 ### Tests
 
 ```bash
-cd backend && ./.venv/Scripts/python -m pytest -q     # 88 tests
+cd backend && ./.venv/Scripts/python -m pytest -q      # 107 tests · gate de cobertura 85% (actual 91%)
+cd frontend && npm test                                # Vitest — lógica pura (motor de búsqueda)
 ```
 
 ---

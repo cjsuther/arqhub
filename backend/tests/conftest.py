@@ -1,5 +1,18 @@
 """Shared fixtures: the canonical DSL example (SPEC §5.2) and the patch (§5.3)."""
 
+import os
+import tempfile
+
+# Make the suite hermetic: point the app engine at a throwaway per-run SQLite file
+# *before* any test imports ``app.main``. Removes the old "delete arqhub.db first"
+# footgun and never touches a running dev database. ``setdefault`` lets an explicit
+# env override still win (e.g. test_api sets its own, CI can point at Postgres).
+os.environ.setdefault(
+    "ARQHUB_DATABASE_URL",
+    f"sqlite+pysqlite:///{os.path.join(tempfile.mkdtemp(), 'arqhub_tests.db')}",
+)
+os.environ.setdefault("ARQHUB_DEV_AUTH", "true")
+
 import pytest
 
 # Verbatim from SPEC §5.2 — the acceptance fixture for Phase 1.

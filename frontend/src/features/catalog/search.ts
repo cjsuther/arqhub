@@ -38,8 +38,24 @@ export function fieldTokenMap(fields: FieldDef[]): Map<string, FieldDef> {
   return m;
 }
 
+// Split on whitespace but keep double-quoted spans intact, even mid-token
+// (`team:"mesa de ayuda"` and `"Fecha de vencimiento":2026-08-20` stay one token).
 function tokenize(raw: string): string[] {
-  return raw.match(/"[^"]*"|\S+/g) ?? [];
+  const out: string[] = [];
+  let cur = "";
+  let inQuote = false;
+  for (const ch of raw) {
+    if (ch === '"') {
+      inQuote = !inQuote;
+      cur += ch;
+    } else if (/\s/.test(ch) && !inQuote) {
+      if (cur) { out.push(cur); cur = ""; }
+    } else {
+      cur += ch;
+    }
+  }
+  if (cur) out.push(cur);
+  return out;
 }
 
 function unquote(s: string): string {
