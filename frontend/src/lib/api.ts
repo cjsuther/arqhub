@@ -129,7 +129,7 @@ export const api = {
   getMe: () => http<User>("/users/me"),
   createUser: (body: { email: string; display_name: string; role: string }) =>
     http<User>("/users", { method: "POST", body: JSON.stringify(body) }),
-  updateUser: (id: string, body: { role?: string; display_name?: string }) =>
+  updateUser: (id: string, body: { role?: string; display_name?: string; email?: string }) =>
     http<User>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   setUserGroups: (id: string, ids: string[]) =>
     http<User>(`/users/${id}/groups`, { method: "PUT", body: JSON.stringify({ ids }) }),
@@ -140,6 +140,8 @@ export const api = {
   createGroup: (name: string) => http<Group>("/groups", { method: "POST", body: JSON.stringify({ name }) }),
   updateGroup: (id: string, name: string) =>
     http<Group>(`/groups/${id}`, { method: "PATCH", body: JSON.stringify({ name }) }),
+  setGroupMembers: (id: string, ids: string[]) =>
+    http<Group>(`/groups/${id}/members`, { method: "PUT", body: JSON.stringify({ ids }) }),
   deleteGroup: (id: string) => http<void>(`/groups/${id}`, { method: "DELETE" }),
   getFolderGroups: (folderId: string) => http<string[]>(`/folders/${folderId}/groups`),
   setFolderGroups: (folderId: string, ids: string[]) =>

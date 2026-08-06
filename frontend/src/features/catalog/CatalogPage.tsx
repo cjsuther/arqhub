@@ -24,6 +24,7 @@ export function CatalogPage() {
     else localStorage.removeItem("arqhub:folders:element:selected");
   };
   const [grouped, setGrouped] = useState(false);
+  const [sort, setSort] = useState("name");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const registry = useQuery({ queryKey: ["registry"], queryFn: api.registry });
@@ -58,7 +59,11 @@ export function CatalogPage() {
   const subtree = folder && folder !== UNFILED ? descendants(folders.data ?? [], folder) : null;
   const inFolder = (e: Element) =>
     folder === ALL ? true : folder === UNFILED ? e.folder_id == null : !!e.folder_id && subtree!.has(e.folder_id);
-  const visible = (elements.data ?? []).filter(inFolder);
+  const sortKey = (e: Element) =>
+    sort === "kind" ? e.kind : sort === "lifecycle" ? e.lifecycle : e.name;
+  const visible = (elements.data ?? [])
+    .filter(inFolder)
+    .sort((a, b) => sortKey(a).localeCompare(sortKey(b)) || a.name.localeCompare(b.name));
 
   function card(el: Element) {
     const sel = selected.has(el.slug);
@@ -113,6 +118,11 @@ export function CatalogPage() {
           <select className="input" value={lifecycle} onChange={(e) => setLifecycle(e.target.value)}>
             <option value="">Todo el ciclo de vida</option>
             {registry.data?.lifecycles.map((l) => <option key={l} value={l}>{l}</option>)}
+          </select>
+          <select className="input" value={sort} onChange={(e) => setSort(e.target.value)} title="Ordenar por">
+            <option value="name">Ordenar: Nombre</option>
+            <option value="kind">Ordenar: Tipo</option>
+            <option value="lifecycle">Ordenar: Ciclo de vida</option>
           </select>
           <button className="btn btn-ghost" onClick={() => setGrouped((g) => !g)} title="Agrupar por tipo">
             {grouped ? <List size={15} /> : <LayoutGrid size={15} />} {grouped ? "Lista" : "Agrupar"}

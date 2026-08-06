@@ -207,6 +207,7 @@ class UserCreate(BaseModel):
 
 class UserUpdate(BaseModel):
     display_name: str | None = None
+    email: str | None = None
     role: str | None = None
 
 
@@ -224,6 +225,7 @@ class GroupRead(BaseModel):
     name: str
     member_count: int = 0
     folder_ids: list[str] = []
+    user_ids: list[str] = []
 
 
 class IdList(BaseModel):

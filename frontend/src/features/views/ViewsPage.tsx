@@ -26,6 +26,7 @@ export function ViewsPage() {
     else localStorage.removeItem("arqhub:folders:view:selected");
   };
   const [grouped, setGrouped] = useState(false);
+  const [sort, setSort] = useState("name");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const clearSel = () => setSelected(new Set());
@@ -50,12 +51,16 @@ export function ViewsPage() {
   };
 
   const subtree = folder && folder !== UNFILED ? descendants(folders.data ?? [], folder) : null;
-  const visible = (views.data ?? []).filter((v) => {
-    if (q && !v.name.toLowerCase().includes(q.toLowerCase())) return false;
-    if (folder === ALL) return true;
-    if (folder === UNFILED) return v.folder_id == null;
-    return !!v.folder_id && subtree!.has(v.folder_id);
-  });
+  const sortKey = (v: View) =>
+    sort === "lang" ? v.lang : sort === "status" ? v.status : sort === "version" ? String(v.current_version).padStart(6, "0") : v.name;
+  const visible = (views.data ?? [])
+    .filter((v) => {
+      if (q && !v.name.toLowerCase().includes(q.toLowerCase())) return false;
+      if (folder === ALL) return true;
+      if (folder === UNFILED) return v.folder_id == null;
+      return !!v.folder_id && subtree!.has(v.folder_id);
+    })
+    .sort((a, b) => sortKey(a).localeCompare(sortKey(b)) || a.name.localeCompare(b.name));
 
   function card(v: View) {
     const sel = selected.has(v.slug);
@@ -117,6 +122,12 @@ export function ViewsPage() {
             <Search size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[hsl(var(--muted))]" />
             <input className="input w-full pl-8" placeholder="Buscar vista…" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
+          <select className="input" value={sort} onChange={(e) => setSort(e.target.value)} title="Ordenar por">
+            <option value="name">Ordenar: Nombre</option>
+            <option value="lang">Ordenar: Lenguaje</option>
+            <option value="status">Ordenar: Estado</option>
+            <option value="version">Ordenar: Versión</option>
+          </select>
           <button className="btn btn-ghost" onClick={() => setGrouped((g) => !g)} title="Agrupar por lenguaje">
             {grouped ? <List size={15} /> : <LayoutGrid size={15} />} {grouped ? "Lista" : "Agrupar"}
           </button>

@@ -13,11 +13,12 @@ from ..schemas.api import GroupCreate, GroupRead, GroupRef, GroupUpdate
 
 
 def _read(db: Session, tenant_id: str, g: Group) -> GroupRead:
-    members = db.scalar(
-        select(func.count()).select_from(UserGroup).where(UserGroup.group_id == g.id)
-    ) or 0
+    user_ids = list(db.scalars(select(UserGroup.user_id).where(UserGroup.group_id == g.id)).all())
     folder_ids = db.scalars(select(GroupFolder.folder_id).where(GroupFolder.group_id == g.id)).all()
-    return GroupRead(id=g.id, name=g.name, member_count=members, folder_ids=list(folder_ids))
+    return GroupRead(
+        id=g.id, name=g.name, member_count=len(user_ids),
+        folder_ids=list(folder_ids), user_ids=user_ids,
+    )
 
 
 def list_groups(db: Session, tenant_id: str) -> list[GroupRead]:
@@ -84,6 +85,19 @@ def set_user_groups(db: Session, principal: Principal, user_id: str, group_ids: 
     write_audit(db, principal, action="set_groups", entity="user", entity_id=user.email,
                 payload={"groups": group_ids})
     db.commit()
+
+
+def set_group_members(db: Session, principal: Principal, group_id: str, user_ids: list[str]) -> GroupRead:
+    g = _get(db, principal.tenant_id, group_id)
+    valid = set(db.scalars(select(User.id).where(User.tenant_id == principal.tenant_id)).all())
+    db.execute(delete(UserGroup).where(UserGroup.group_id == group_id))
+    for uid in dict.fromkeys(user_ids):
+        if uid in valid:
+            db.add(UserGroup(tenant_id=principal.tenant_id, user_id=uid, group_id=group_id))
+    write_audit(db, principal, action="set_members", entity="group", entity_id=g.name,
+                payload={"users": user_ids})
+    db.commit()
+    return _read(db, principal.tenant_id, g)
 
 
 def get_folder_groups(db: Session, tenant_id: str, folder_id: str) -> list[str]:

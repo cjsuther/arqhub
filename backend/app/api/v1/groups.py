@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Response, status
 
 from ...core.deps import DbDep, PrincipalDep, require_role
-from ...schemas.api import GroupCreate, GroupRead, GroupUpdate
+from ...schemas.api import GroupCreate, GroupRead, GroupUpdate, IdList
 from ...services import groups
 
 router = APIRouter(prefix="/groups", tags=["groups"])
@@ -24,6 +24,11 @@ def create_group(db: DbDep, payload: GroupCreate, principal=Depends(require_role
 @router.patch("/{group_id}", response_model=GroupRead)
 def update_group(db: DbDep, group_id: str, payload: GroupUpdate, principal=Depends(require_role("admin"))):
     return groups.update_group(db, principal, group_id, payload)
+
+
+@router.put("/{group_id}/members", response_model=GroupRead)
+def set_members(db: DbDep, group_id: str, body: IdList, principal=Depends(require_role("admin"))):
+    return groups.set_group_members(db, principal, group_id, body.ids)
 
 
 @router.delete("/{group_id}", status_code=status.HTTP_204_NO_CONTENT)

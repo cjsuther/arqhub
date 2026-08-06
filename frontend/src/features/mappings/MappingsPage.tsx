@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { DataTable, type Column } from "../../components/DataTable";
 import { api } from "../../lib/api";
 import { langLabel } from "../../lib/ui";
 
@@ -17,6 +18,15 @@ const LAYERS: { value: string; label: string }[] = [
 const LAYER_LABEL = Object.fromEntries(LAYERS.map((l) => [l.value, l.label]));
 const LANGS = ["archimate", "bpmn", "uml"] as const;
 
+interface Row {
+  key: string;
+  layer: string;
+  archimate: string | null;
+  bpmn: string | null;
+  uml: string | null;
+  custom: boolean;
+}
+
 export function MappingsPage() {
   const qc = useQueryClient();
   const registry = useQuery({ queryKey: ["registry"], queryFn: api.registry });
@@ -29,21 +39,23 @@ export function MappingsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const add = useMutation({
-    mutationFn: () => api.addKind({
-      key, layer, archimate: proj.archimate || null, bpmn: proj.bpmn || null, uml: proj.uml || null,
-    }),
-    onSuccess: (reg) => {
-      qc.setQueryData(["registry"], reg);
-      setKey(""); setProj({ archimate: "", bpmn: "", uml: "" }); setError(null);
-    },
+    mutationFn: () => api.addKind({ key, layer, archimate: proj.archimate || null, bpmn: proj.bpmn || null, uml: proj.uml || null }),
+    onSuccess: (reg) => { qc.setQueryData(["registry"], reg); setKey(""); setProj({ archimate: "", bpmn: "", uml: "" }); setError(null); },
     onError: (e) => setError(e instanceof Error ? cleanError(e.message) : "Error"),
   });
-  const del = useMutation({
-    mutationFn: (k: string) => api.deleteKind(k),
-    onSuccess: (reg) => qc.setQueryData(["registry"], reg),
-  });
+  const del = useMutation({ mutationFn: (k: string) => api.deleteKind(k), onSuccess: (reg) => qc.setQueryData(["registry"], reg) });
 
-  const kinds = Object.entries(registry.data?.kinds ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  const rows: Row[] = Object.entries(registry.data?.kinds ?? {}).map(([k, def]) => ({
+    key: k, layer: def.layer, archimate: def.mappings.archimate, bpmn: def.mappings.bpmn, uml: def.mappings.uml, custom: !!def.custom,
+  }));
+
+  const dash = (v: string | null) => (v ? <span>{v}</span> : <span className="text-[hsl(var(--muted))]">—</span>);
+  const columns: Column<Row>[] = [
+    { key: "key", header: "Componente", get: (r) => r.key,
+      render: (r) => <><code>{r.key}</code>{r.custom && <span className="ml-1.5 badge bg-[hsl(var(--accent))]/15 text-[hsl(var(--accent))]">custom</span>}</> },
+    { key: "layer", header: "Capa", get: (r) => LAYER_LABEL[r.layer] ?? r.layer },
+    ...LANGS.map((l) => ({ key: l, header: langLabel(l), get: (r: Row) => r[l] ?? "", render: (r: Row) => dash(r[l]) })),
+  ];
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
@@ -87,44 +99,14 @@ export function MappingsPage() {
         </div>
       )}
 
-      <div className="surface overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
-          <thead className="border-b text-left text-xs uppercase text-[hsl(var(--muted))]">
-            <tr>
-              <th className="px-4 py-2 font-medium">Componente</th>
-              <th className="px-4 py-2 font-medium">Capa</th>
-              {LANGS.map((l) => <th key={l} className="px-4 py-2 font-medium">{langLabel(l)}</th>)}
-              <th className="px-4 py-2" />
-            </tr>
-          </thead>
-          <tbody>
-            {kinds.map(([k, def]) => (
-              <tr key={k} className="border-b last:border-0">
-                <td className="px-4 py-2">
-                  <code>{k}</code>
-                  {def.custom && <span className="ml-1.5 badge bg-[hsl(var(--accent))]/15 text-[hsl(var(--accent))]">custom</span>}
-                </td>
-                <td className="px-4 py-2 text-[hsl(var(--muted))]">{LAYER_LABEL[def.layer] ?? def.layer}</td>
-                {LANGS.map((l) => (
-                  <td key={l} className="px-4 py-2">
-                    {def.mappings[l]
-                      ? <span>{def.mappings[l]}</span>
-                      : <span className="text-[hsl(var(--muted))]">—</span>}
-                  </td>
-                ))}
-                <td className="px-4 py-2 text-right">
-                  {isAdmin && def.custom && (
-                    <button className="btn btn-ghost !py-1 text-red-600" title="Eliminar componente"
-                      onClick={() => window.confirm(`¿Eliminar el componente "${k}"?`) && del.mutate(k)}>
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={columns} rows={rows} rowKey={(r) => r.key} initialSort="key"
+        filterPlaceholder="Filtrar componentes…"
+        actions={isAdmin ? (r) => (r.custom ? (
+          <button className="btn btn-ghost !py-1 text-red-600" title="Eliminar componente"
+            onClick={() => window.confirm(`¿Eliminar el componente "${r.key}"?`) && del.mutate(r.key)}><Trash2 size={14} /></button>
+        ) : null) : undefined}
+      />
     </div>
   );
 }

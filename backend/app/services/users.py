@@ -100,6 +100,18 @@ def update_user(db: Session, principal: Principal, user_id: str, payload: UserUp
         user.role = payload.role
     if payload.display_name is not None:
         user.display_name = payload.display_name.strip() or user.display_name
+    if payload.email is not None:
+        email = payload.email.strip().lower()
+        if not email:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "El email no puede quedar vacío.")
+        clash = db.scalar(
+            select(User).where(
+                User.tenant_id == principal.tenant_id, func.lower(User.email) == email, User.id != user.id
+            )
+        )
+        if clash is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT, f"Ya existe un usuario con el email '{email}'.")
+        user.email = email
     write_audit(db, principal, action="update", entity="user", entity_id=user.email,
                 payload={"role": user.role})
     db.commit()

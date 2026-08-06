@@ -140,6 +140,7 @@ export interface Group {
   name: string;
   member_count: number;
   folder_ids: string[];
+  user_ids: string[];
 }
 
 export interface User {
