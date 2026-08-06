@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL">
   <img src="https://img.shields.io/badge/MCP-nativo-A855F7" alt="MCP">
-  <img src="https://img.shields.io/badge/tests-107%20passing-3FB950?logo=pytest&logoColor=white" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-116%20passing-3FB950?logo=pytest&logoColor=white" alt="Tests">
   <img src="https://img.shields.io/badge/coverage-91%25-3FB950" alt="Coverage">
 </p>
 
@@ -117,7 +117,9 @@ Requisitos: **Python 3.12+**, **Node 20+**. Postgres/Redis son opcionales — en
 cd backend
 python -m venv .venv
 ./.venv/Scripts/python -m pip install -e ".[dev]"     # Linux/mac: .venv/bin/python
-./.venv/Scripts/python -m uvicorn app.main:app --reload
+# Secure by default (exige Entra ID). Para dev local sobre SQLite, habilitá el stub
+# de auth (autentica como admin semilla; permitido sólo en SQLite):
+ARQHUB_DEV_AUTH=true ./.venv/Scripts/python -m uvicorn app.main:app --reload
 ```
 
 ```bash
@@ -129,15 +131,21 @@ npm run dev
 
 ```bash
 # 3) (Opcional) Todo el stack con Postgres + Redis
+cp .env.example .env      # poné POSTGRES_PASSWORD / REDIS_PASSWORD reales
 docker compose up
 ```
+
+> Defaults endurecidos: db/redis no publican puertos al host, Redis pide password y
+> `dev_auth` está **apagado**. Para el demo abierto (todo request = admin, sin login),
+> seteá en `.env`: `ARQHUB_DEV_AUTH=true` **y** `ARQHUB_ALLOW_INSECURE_DEV_AUTH=true`.
+> Nunca en una red accesible por terceros.
 
 > En Windows, `./dev.ps1` levanta backend + frontend y abre el navegador.
 
 ### Tests
 
 ```bash
-cd backend && ./.venv/Scripts/python -m pytest -q      # 107 tests · gate de cobertura 85% (actual 91%)
+cd backend && ./.venv/Scripts/python -m pytest -q      # 116 tests · gate de cobertura 85% (actual 91%)
 cd frontend && npm test                                # Vitest — lógica pura (motor de búsqueda)
 ```
 

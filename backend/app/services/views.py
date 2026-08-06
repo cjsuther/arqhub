@@ -31,6 +31,7 @@ from ..schemas.api import (
 )
 from .catalog import _element_read, _relation_read, _row_meta
 from .dsl import ModelGraph, apply_document, diff_graphs, graph_to_dict
+from .html_sanitize import sanitize_html
 from .dsl.schema import DslDocument, ViewDef, ViewInclude
 from .exporters import render_view_svg
 from .repository import load_graph, sync_graph
@@ -223,6 +224,8 @@ def update_view(db, principal: Principal, slug: str, payload: ViewUpdate) -> Vie
     # A model edit on an in-review/published/deprecated view starts a NEW working
     # version: it returns to draft, private to the editor, until re-approved (§11).
     # `notes` is presentation-side documentation and never triggers this.
+    if "notes" in changes:  # user-authored HTML: strip XSS before it is stored (SPEC §12)
+        changes["notes"] = sanitize_html(changes["notes"])
     model_changes = {k for k in changes if k not in {"notes"}}
     if row.status in ("in_review", "published", "deprecated") and "status" not in changes and model_changes:
         for ar in db.scalars(

@@ -68,6 +68,6 @@ def set_fields(db: DbDep, slug: str, body: FieldValues, principal=Depends(requir
 
 
 @router.delete("/{slug}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_element(db: DbDep, slug: str, principal=Depends(require_role("editor"))):
+def delete_element(db: DbDep, slug: str, principal=Depends(require_role("editor", human_only=True))):
     catalog.delete_element(db, principal, slug)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

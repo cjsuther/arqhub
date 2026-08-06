@@ -189,6 +189,16 @@ def get_auth_provider() -> AuthProvider:
     global _provider
     if _provider is None:
         if settings.dev_auth:
+            # dev_auth authenticates every request as admin with no token. Allow it
+            # freely on SQLite (local dev), but refuse on a real database unless the
+            # operator explicitly opted in — avoids shipping an open API by accident.
+            if not settings.database_url.startswith("sqlite") and not settings.allow_insecure_dev_auth:
+                raise RuntimeError(
+                    "ARQHUB_DEV_AUTH=true on a non-SQLite database authenticates every "
+                    "request as admin with no token. Refusing to start. Set "
+                    "ARQHUB_DEV_AUTH=false and configure Entra ID, or set "
+                    "ARQHUB_ALLOW_INSECURE_DEV_AUTH=true to override for a trusted demo."
+                )
             _provider = DevAuthProvider()
         elif settings.entra_client_id and settings.entra_effective_jwks_uri():
             _provider = EntraAuthProvider(settings)

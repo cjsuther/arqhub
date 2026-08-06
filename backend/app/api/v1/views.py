@@ -44,7 +44,7 @@ def update_view(db: DbDep, slug: str, payload: ViewUpdate, principal=Depends(req
 
 
 @router.delete("/{slug}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_view(db: DbDep, slug: str, principal=Depends(require_role("editor"))):
+def delete_view(db: DbDep, slug: str, principal=Depends(require_role("editor", human_only=True))):
     views.delete_view(db, principal, slug)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -98,12 +98,12 @@ def submit_review(db: DbDep, slug: str, body: SubmitReviewBody, principal=Depend
 
 
 @router.post("/{slug}/publish", response_model=ViewRead)
-def publish(db: DbDep, slug: str, principal=Depends(require_role("approver"))):
+def publish(db: DbDep, slug: str, principal=Depends(require_role("approver", human_only=True))):
     return approvals.publish(db, principal, slug)
 
 
 @router.post("/{slug}/deprecate", response_model=ViewRead)
-def deprecate(db: DbDep, slug: str, principal=Depends(require_role("approver"))):
+def deprecate(db: DbDep, slug: str, principal=Depends(require_role("approver", human_only=True))):
     return approvals.deprecate(db, principal, slug)
 
 

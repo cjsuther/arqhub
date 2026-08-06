@@ -6,9 +6,11 @@ $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
 
 Write-Host "Iniciando backend (FastAPI) en http://localhost:8000 ..." -ForegroundColor Cyan
+# Auth stub para dev local sobre SQLite (la app es segura por defecto: sin esto
+# exigiría Entra ID). Permitido sólo en SQLite; en una DB real se niega a arrancar.
 Start-Process powershell -ArgumentList @(
     "-NoExit", "-Command",
-    "cd '$root\backend'; .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload"
+    "cd '$root\backend'; `$env:ARQHUB_DEV_AUTH='true'; .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload"
 )
 
 Write-Host "Iniciando frontend (Vite) en http://localhost:5173 ..." -ForegroundColor Cyan

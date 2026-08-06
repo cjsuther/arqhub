@@ -39,14 +39,25 @@ def get_principal(
 PrincipalDep = Annotated[Principal, Depends(get_principal)]
 
 
-def require_role(minimum: str):
-    """Dependency factory enforcing a minimum role (SPEC §12)."""
+def require_role(minimum: str, *, human_only: bool = False):
+    """Dependency factory enforcing a minimum role (SPEC §12).
+
+    ``human_only`` additionally rejects automation principals (personal access
+    tokens / MCP, ``actor_type != "user"``). This enforces §9 at the API layer —
+    the IA can create/edit drafts but must never approve, publish or delete —
+    instead of relying only on which tools the MCP server chooses to expose.
+    """
 
     def _dep(principal: PrincipalDep) -> Principal:
         if _ROLE_ORDER[principal.role] < _ROLE_ORDER[minimum]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Requires role '{minimum}' or higher.",
+            )
+        if human_only and principal.actor_type != "user":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Esta acción no está permitida para tokens de automatización (IA/MCP).",
             )
         return principal
 

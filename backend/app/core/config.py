@@ -12,9 +12,14 @@ class Settings(BaseSettings):
     # (e.g. postgresql+psycopg://user:pass@host/arqhub).
     database_url: str = "sqlite+pysqlite:///./arqhub.db"
 
-    # Dev auth stub: when true, requests are authenticated as the seed admin.
-    # Set false in prod to require real Entra ID OIDC bearer tokens.
-    dev_auth: bool = True
+    # Dev auth stub: when true, EVERY request is authenticated as the seed admin
+    # (no token required). Secure by default — must be explicitly enabled for
+    # local/demo use. In prod leave it false and configure Entra ID OIDC.
+    dev_auth: bool = False
+    # Safety catch: dev_auth on a non-SQLite (i.e. likely non-local) database is a
+    # full auth bypass. The app refuses to start in that combination unless this is
+    # explicitly set, forcing an operator to acknowledge the risk.
+    allow_insecure_dev_auth: bool = False
 
     # Entra ID (Azure AD) OIDC — SPEC §12. Required when dev_auth is false.
     entra_tenant_id: str | None = None

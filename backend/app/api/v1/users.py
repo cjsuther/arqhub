@@ -38,8 +38,15 @@ def revoke_token(db: DbDep, token_id: str, principal: PrincipalDep):
 
 @router.get("", response_model=list[UserRead])
 def list_users(db: DbDep, principal: PrincipalDep, role: str | None = None):
-    """List users of the tenant (optionally filtered by role) — approver picklist."""
-    return users.list_users(db, principal.tenant_id, role)
+    """List users of the tenant (optionally filtered by role) — approver picklist.
+
+    Everyone may see the roster (needed to pick approvers/assignees), but email
+    addresses are only exposed to admins to limit directory harvesting.
+    """
+    rows = users.list_users(db, principal.tenant_id, role)
+    if principal.role != "admin":
+        rows = [u.model_copy(update={"email": ""}) for u in rows]
+    return rows
 
 
 @router.get("/me", response_model=UserRead)

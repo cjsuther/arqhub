@@ -1,9 +1,10 @@
 import {
   Bold, Eye, Heading, Italic, List, ListOrdered, Link as LinkIcon, Pencil, Redo2, Underline, X,
 } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 
 import { api } from "../lib/api";
+import { sanitizeHtml } from "../lib/sanitizeHtml";
 
 // Shared prose styling for both the editor surface and the read-only preview.
 const PROSE =
@@ -61,22 +62,15 @@ function RichTextEditor({ initial, onChange }: { initial: string; onChange: (htm
   );
 }
 
-// Read-only render where links are clickable (open in a new, safe tab).
+// Read-only render. Sanitised before injection (XSS defense-in-depth); the
+// sanitiser also forces links to open in a new, safe tab.
 function Preview({ html }: { html: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    ref.current?.querySelectorAll("a").forEach((a) => {
-      a.setAttribute("target", "_blank");
-      a.setAttribute("rel", "noopener noreferrer");
-    });
-  }, [html]);
-
   if (!html.trim()) {
     return <p className="flex-1 p-6 text-center text-sm text-[hsl(var(--muted))]">Sin documentación todavía.</p>;
   }
   return (
-    <div ref={ref} className={`min-h-48 flex-1 overflow-auto p-4 text-sm ${PROSE}`}
-      dangerouslySetInnerHTML={{ __html: html }} />
+    <div className={`min-h-48 flex-1 overflow-auto p-4 text-sm ${PROSE}`}
+      dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }} />
   );
 }
 
