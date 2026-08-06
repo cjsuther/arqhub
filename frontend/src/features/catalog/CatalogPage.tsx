@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LayoutGrid, List } from "lucide-react";
-import { useState } from "react";
+import { LayoutGrid, List, SlidersHorizontal } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { folderOptions } from "../../components/FolderSelect";
@@ -9,12 +9,13 @@ import { ALL, DND_ITEM, UNFILED, descendants } from "../../components/FolderTree
 import { api } from "../../lib/api";
 import type { Element } from "../../lib/types";
 import { KindBadge, LifecycleBadge } from "../../lib/ui";
+import { AdvancedSearchDialog } from "./AdvancedSearchDialog";
+import { fieldTokenMap, matchElement, parseQuery } from "./search";
 
 export function CatalogPage() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
-  const [kind, setKind] = useState("");
-  const [lifecycle, setLifecycle] = useState("");
+  const [advanced, setAdvanced] = useState(false);
   const [folder, setFolderState] = useState<string | null>(
     () => localStorage.getItem("arqhub:folders:element:selected") || ALL,
   );
@@ -27,19 +28,15 @@ export function CatalogPage() {
   const [sort, setSort] = useState("name");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const [fieldFilters, setFieldFilters] = useState<Record<string, string>>({});
-  const setFF = (key: string, v: string) => setFieldFilters((s) => ({ ...s, [key]: v }));
-
   const registry = useQuery({ queryKey: ["registry"], queryFn: api.registry });
   const folders = useQuery({ queryKey: ["folders", "element"], queryFn: () => api.listFolders("element") });
   const allFields = useQuery({ queryKey: ["fields", "all"], queryFn: () => api.listFields() });
-  // Distinct custom fields across every type (dedup by key) — each one is its own filter input.
+  // Distinct custom fields across every type (dedup by key), used to parse `field:value` tokens.
   const fieldOpts = [...new Map((allFields.data ?? []).map((f) => [f.key, f])).values()];
-  const elements = useQuery({
-    queryKey: ["elements", { q, kind, lifecycle }],
-    queryFn: () =>
-      api.listElements({ q: q || undefined, kind: kind || undefined, lifecycle: lifecycle || undefined }),
-  });
+  const tokens = useMemo(() => fieldTokenMap(fieldOpts), [allFields.data]);
+  const parsed = useMemo(() => parseQuery(q, tokens), [q, tokens]);
+  // All filtering (text, tipo/ciclo, custom fields, ranges) runs client-side over the full list.
+  const elements = useQuery({ queryKey: ["elements", "all"], queryFn: () => api.listElements({}) });
 
   const clearSel = () => setSelected(new Set());
   const toggle = (slug: string) =>
@@ -68,19 +65,9 @@ export function CatalogPage() {
   const sortKey = (e: Element) =>
     sort === "kind" ? e.kind : sort === "lifecycle" ? e.lifecycle : e.name;
 
-  // Filter directly by each custom field's value (substring, case-insensitive — same as backend).
-  const activeFF = Object.entries(fieldFilters).filter(([, v]) => v.trim() !== "");
-  const fieldMatch = (val: unknown, needle: string) => {
-    const n = needle.toLowerCase();
-    if (Array.isArray(val)) return val.some((x) => String(x).toLowerCase().includes(n));
-    return val != null && val !== "" && String(val).toLowerCase().includes(n);
-  };
-  const matchesFields = (e: Element) =>
-    activeFF.every(([k, v]) => fieldMatch(e.custom_fields?.[k], v));
-
   const visible = (elements.data ?? [])
     .filter(inFolder)
-    .filter(matchesFields)
+    .filter((e) => matchElement(e, parsed, tokens))
     .sort((a, b) => sortKey(a).localeCompare(sortKey(b)) || a.name.localeCompare(b.name));
 
   function card(el: Element) {
@@ -127,16 +114,13 @@ export function CatalogPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <input className="input flex-1 min-w-48" placeholder="Buscar por nombre o descripción…"
+          <input className="input flex-1 min-w-48"
+            placeholder="Buscar: texto, o campo:valor  ·  rangos con ..  (ej: fecha-vencimiento:2026-08-01..2026-08-31)"
             value={q} onChange={(e) => setQ(e.target.value)} />
-          <select className="input" value={kind} onChange={(e) => setKind(e.target.value)}>
-            <option value="">Todos los tipos</option>
-            {registry.data && Object.keys(registry.data.kinds).map((k) => <option key={k} value={k}>{k}</option>)}
-          </select>
-          <select className="input" value={lifecycle} onChange={(e) => setLifecycle(e.target.value)}>
-            <option value="">Todo el ciclo de vida</option>
-            {registry.data?.lifecycles.map((l) => <option key={l} value={l}>{l}</option>)}
-          </select>
+          <button className="btn btn-ghost" onClick={() => setAdvanced(true)} title="Búsqueda avanzada por campos">
+            <SlidersHorizontal size={15} /> Búsqueda avanzada
+          </button>
+          {q && <button className="btn btn-ghost" onClick={() => setQ("")} title="Limpiar búsqueda">Limpiar</button>}
           <select className="input" value={sort} onChange={(e) => setSort(e.target.value)} title="Ordenar por">
             <option value="name">Ordenar: Nombre</option>
             <option value="kind">Ordenar: Tipo</option>
@@ -147,27 +131,14 @@ export function CatalogPage() {
           </button>
         </div>
 
-        {fieldOpts.length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <span className="text-xs text-[hsl(var(--muted))]">Filtrar por:</span>
-            {fieldOpts.map((f) => (
-              <label key={f.key} className="flex items-center gap-1.5">
-                <span className="text-xs text-[hsl(var(--muted))]">{f.label}</span>
-                {f.field_type === "select" || f.field_type === "multiselect" ? (
-                  <select className="input !py-1" value={fieldFilters[f.key] ?? ""} onChange={(e) => setFF(f.key, e.target.value)}>
-                    <option value="">—</option>
-                    {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                ) : (
-                  <input className="input !py-1 min-w-36"
-                    type={f.field_type === "date" ? "date" : f.field_type === "time" ? "time" : f.field_type === "number" ? "number" : "text"}
-                    placeholder="…" value={fieldFilters[f.key] ?? ""} onChange={(e) => setFF(f.key, e.target.value)} />
-                )}
-              </label>
+        {parsed.clauses.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-[hsl(var(--muted))]">
+            <span>Filtros activos:</span>
+            {parsed.clauses.map((c, i) => (
+              <span key={i} className="badge bg-[hsl(var(--accent))]/15 text-[hsl(var(--accent))]">
+                {c.token}: {c.op === "range" ? `${c.from ?? ""}..${c.to ?? ""}` : c.value}
+              </span>
             ))}
-            {activeFF.length > 0 && (
-              <button className="btn btn-ghost !py-1" onClick={() => setFieldFilters({})}>Limpiar</button>
-            )}
           </div>
         )}
 
@@ -200,6 +171,17 @@ export function CatalogPage() {
           <p className="text-sm text-[hsl(var(--muted))]">No hay elementos en esta selección.</p>
         )}
       </div>
+
+      {advanced && (
+        <AdvancedSearchDialog
+          initialQuery={q}
+          fields={fieldOpts}
+          kinds={Object.keys(registry.data?.kinds ?? {})}
+          lifecycles={registry.data?.lifecycles ?? []}
+          onApply={setQ}
+          onClose={() => setAdvanced(false)}
+        />
+      )}
     </div>
   );
 }
