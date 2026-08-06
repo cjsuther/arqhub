@@ -29,7 +29,7 @@ from ..schemas.api import (
     ViewUpdate,
     VersionRead,
 )
-from .catalog import _element_read, _relation_read
+from .catalog import _element_read, _relation_read, _row_meta
 from .dsl import ModelGraph, apply_document, diff_graphs, graph_to_dict
 from .dsl.schema import DslDocument, ViewDef, ViewInclude
 from .exporters import render_view_svg
@@ -155,9 +155,10 @@ def get_view_graph(db, principal: Principal, slug: str) -> ViewGraphRead:
         LayoutNode(element=l.element_slug, x=l.x, y=l.y, w=l.w, h=l.h, parent=l.parent, style=l.style or {})
         for l in db.query(ViewLayout).filter(ViewLayout.view_id == row.id).all()
     ]
+    meta = _row_meta(db, tenant_id)  # folder_id + custom_fields per element
     return ViewGraphRead(
         view=_view_read(db, tenant_id, row),
-        elements=[_element_read(el) for el in sub.elements.values()],
+        elements=[_element_read(el, *meta.get(el.slug, (None, {}))) for el in sub.elements.values()],
         relations=[_relation_read(rel) for rel in sub.relations.values()],
         layout=layout,
     )

@@ -106,8 +106,9 @@ export function MappingsPage() {
         filterPlaceholder="Filtrar componentes…"
         actions={isAdmin ? (r) => (
           <div className="flex justify-end gap-1">
-            <button className="btn btn-ghost !py-1" title="Campos personalizados" onClick={() => setFieldsKind(r.key)}>
-              <ListPlus size={14} />
+            <button className="btn btn-ghost !py-1 !border-[hsl(var(--border))]" title="Campos personalizados de este tipo"
+              onClick={() => setFieldsKind(r.key)}>
+              <ListPlus size={14} /> Campos
             </button>
             {r.custom && (
               <button className="btn btn-ghost !py-1 text-red-600" title="Eliminar componente"

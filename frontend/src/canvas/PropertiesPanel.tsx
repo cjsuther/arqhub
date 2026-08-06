@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import type { Element, Lifecycle } from "../lib/types";
 import { LifecycleBadge } from "../lib/ui";
+import { CustomFields } from "../features/catalog/CustomFields";
 
 const LIFECYCLES: { value: Lifecycle; label: string }[] = [
   { value: "proposed", label: "Propuesto" },
@@ -48,7 +49,7 @@ export function PropertiesPanel({ element, onSaved }: Props) {
   }
 
   return (
-    <div className="surface flex w-72 flex-col gap-3 border-l p-4 text-sm">
+    <div className="surface flex w-72 flex-col gap-3 overflow-auto border-l p-4 text-sm">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">Propiedades</h3>
         <LifecycleBadge value={element.lifecycle} />
@@ -75,6 +76,8 @@ export function PropertiesPanel({ element, onSaved }: Props) {
         {element.domain && <div>dominio: {element.domain}</div>}
         <div>slug: <code>{element.slug}</code></div>
       </div>
+
+      <CustomFields element={element} onSaved={onSaved} />
 
       <div className="mt-auto flex items-center gap-2">
         <button className="btn btn-primary flex-1 justify-center disabled:opacity-40"
