@@ -117,6 +117,8 @@ def set_element_folder(db, principal: Principal, slug: str, folder_id: str | Non
     )
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Element '{slug}' not found.")
+    access.assert_can_edit_folder(db, principal, row.folder_id)  # source
+    access.assert_can_edit_folder(db, principal, folder_id)  # target
     row.folder_id = folder_id
     write_audit(db, principal, action="move_folder", entity="element", entity_id=slug,
                 payload={"folder_id": folder_id})
@@ -136,10 +138,16 @@ def create_element(db, principal: Principal, payload: ElementCreate) -> ElementR
     return _element_read(graph.elements[payload.slug])
 
 
+def _assert_can_edit(db, principal: Principal, slug: str) -> None:
+    row = db.scalar(select(ElementRow).where(ElementRow.tenant_id == principal.tenant_id, ElementRow.slug == slug))
+    access.assert_can_edit_folder(db, principal, row.folder_id if row else None)
+
+
 def update_element(db, principal: Principal, slug: str, payload: ElementUpdate) -> ElementRead:
     graph = load_graph(db, principal.tenant_id)
     if slug not in graph.elements:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Element '{slug}' not found.")
+    _assert_can_edit(db, principal, slug)  # respect folder edit lock
     changes = payload.model_dump(exclude_none=True)
     graph = _apply(
         db, principal, PatchSection(update_elements={slug: changes}),
@@ -152,6 +160,7 @@ def delete_element(db, principal: Principal, slug: str) -> None:
     graph = load_graph(db, principal.tenant_id)
     if slug not in graph.elements:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Element '{slug}' not found.")
+    _assert_can_edit(db, principal, slug)  # respect folder edit lock
     _apply(
         db, principal, PatchSection(remove_elements=[slug]),
         action="delete", entity="element", entity_id=slug,

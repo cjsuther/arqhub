@@ -13,11 +13,15 @@ from sqlalchemy.orm import Session
 from ..core.auth import Principal
 from ..core.deps import write_audit
 from ..models import Element, Folder, View
-from ..schemas.api import FolderCreate, FolderRead, FolderUpdate
+from ..schemas.api import FolderCreate, FolderLock, FolderRead, FolderUpdate
+from . import access
 
 
 def _read(f: Folder) -> FolderRead:
-    return FolderRead(id=f.id, name=f.name, scope=f.scope, parent_id=f.parent_id)
+    return FolderRead(
+        id=f.id, name=f.name, scope=f.scope, parent_id=f.parent_id,
+        locked=bool(f.locked), edit_group_id=f.edit_group_id,
+    )
 
 
 def _get(db: Session, tenant_id: str, folder_id: str) -> Folder:
@@ -63,8 +67,19 @@ def _is_descendant(db: Session, folder_id: str, maybe_ancestor: str) -> bool:
     return False
 
 
+def set_folder_lock(db: Session, principal: Principal, folder_id: str, payload: FolderLock) -> FolderRead:
+    f = _get(db, principal.tenant_id, folder_id)
+    f.locked = payload.locked
+    f.edit_group_id = payload.edit_group_id if payload.locked else None
+    write_audit(db, principal, action="lock", entity="folder", entity_id=folder_id,
+                payload={"locked": payload.locked, "group": payload.edit_group_id})
+    db.commit()
+    return _read(f)
+
+
 def update_folder(db: Session, principal: Principal, folder_id: str, payload: FolderUpdate) -> FolderRead:
     f = _get(db, principal.tenant_id, folder_id)
+    access.assert_can_edit_folder(db, principal, folder_id)  # respect the edit lock
     changes = payload.model_dump(exclude_unset=True)
     if "parent_id" in changes:
         new_parent = changes["parent_id"]
@@ -81,6 +96,7 @@ def update_folder(db: Session, principal: Principal, folder_id: str, payload: Fo
 
 def delete_folder(db: Session, principal: Principal, folder_id: str) -> None:
     f = _get(db, principal.tenant_id, folder_id)
+    access.assert_can_edit_folder(db, principal, folder_id)  # respect the edit lock
     # Reparent children and move contained items up to this folder's parent.
     for child in db.scalars(select(Folder).where(Folder.parent_id == folder_id)):
         child.parent_id = f.parent_id

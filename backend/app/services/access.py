@@ -11,6 +11,8 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from fastapi import HTTPException, status
+
 from ..core.auth import Principal
 from ..models import Folder, GroupFolder, UserGroup, View, ViewShare
 
@@ -67,6 +69,38 @@ def view_shares(db: Session, tenant_id: str) -> dict[str, set[str]]:
     for s in db.scalars(select(ViewShare).where(ViewShare.tenant_id == tenant_id)).all():
         out.setdefault(s.view_id, set()).add(s.user_id)
     return out
+
+
+def can_edit_folder(db: Session, principal: Principal, folder_id: str | None) -> bool:
+    """Whether the principal may modify items in ``folder_id`` (and the folder).
+
+    A locked folder restricts editing to members of its ``edit_group_id`` (or nobody
+    when null); the restriction is inherited by descendants. Admins always may;
+    items with no folder are open.
+    """
+    if principal.role == "admin":
+        return True
+    if not folder_id:
+        return True
+    folders = {f.id: f for f in db.scalars(select(Folder).where(Folder.tenant_id == principal.tenant_id)).all()}
+    mine = user_group_ids(db, principal.tenant_id, principal.user_id)
+    cur: str | None = folder_id
+    seen: set[str] = set()
+    while cur and cur not in seen:
+        seen.add(cur)
+        f = folders.get(cur)
+        if f is None:
+            break
+        if f.locked:
+            if not f.edit_group_id or f.edit_group_id not in mine:
+                return False
+        cur = f.parent_id
+    return True
+
+
+def assert_can_edit_folder(db: Session, principal: Principal, folder_id: str | None) -> None:
+    if not can_edit_folder(db, principal, folder_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "La carpeta está bloqueada para edición.")
 
 
 def can_see_view(

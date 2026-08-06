@@ -157,6 +157,8 @@ export const api = {
   updateFolder: (id: string, body: { name?: string; parent_id?: string | null }) =>
     http<Folder>(`/folders/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   deleteFolder: (id: string) => http<void>(`/folders/${id}`, { method: "DELETE" }),
+  setFolderLock: (folderId: string, body: { locked: boolean; edit_group_id: string | null }) =>
+    http<Folder>(`/folders/${folderId}/lock`, { method: "PUT", body: JSON.stringify(body) }),
   setElementFolder: (slug: string, folder_id: string | null) =>
     http<Element>(`/elements/${slug}/folder`, { method: "PATCH", body: JSON.stringify({ folder_id }) }),
   setViewFolder: (slug: string, folder_id: string | null) =>

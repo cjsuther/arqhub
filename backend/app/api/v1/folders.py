@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Response, status
 
 from ...core.deps import DbDep, PrincipalDep, require_role
-from ...schemas.api import FolderCreate, FolderRead, FolderUpdate, IdList
+from ...schemas.api import FolderCreate, FolderLock, FolderRead, FolderUpdate, IdList
 from ...services import folders, groups
 
 router = APIRouter(prefix="/folders", tags=["folders"])
@@ -41,3 +41,8 @@ def get_folder_groups(db: DbDep, principal: PrincipalDep, folder_id: str):
 @router.put("/{folder_id}/groups", response_model=list[str])
 def set_folder_groups(db: DbDep, folder_id: str, body: IdList, principal=Depends(require_role("admin"))):
     return groups.set_folder_groups(db, principal, folder_id, body.ids)
+
+
+@router.put("/{folder_id}/lock", response_model=FolderRead)
+def set_folder_lock(db: DbDep, folder_id: str, body: FolderLock, principal=Depends(require_role("admin"))):
+    return folders.set_folder_lock(db, principal, folder_id, body)

@@ -73,3 +73,7 @@ class Folder(Base, PkMixin, TenantMixin, TimestampMixin):
     parent_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("folders.id"), default=None, index=True
     )
+    # Edit lock (SPEC §12): when locked, only members of ``edit_group_id`` (or, when
+    # null, nobody but admins) may modify the folder and the items inside it.
+    locked: Mapped[bool] = mapped_column(default=False)
+    edit_group_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("groups.id"), default=None)

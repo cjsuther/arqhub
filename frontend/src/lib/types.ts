@@ -24,6 +24,8 @@ export interface Folder {
   name: string;
   scope: "element" | "view";
   parent_id: string | null;
+  locked?: boolean;
+  edit_group_id?: string | null;
 }
 
 export interface Relationship {

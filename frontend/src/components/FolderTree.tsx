@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ChevronDown, ChevronRight, Folder as FolderIcon, FolderPlus, Layers, Lock, Pencil, Shield, Trash2,
+  ChevronDown, ChevronRight, Folder as FolderIcon, FolderPlus, Layers, Lock, LockKeyhole, Pencil, Shield, Trash2,
 } from "lucide-react";
 import { useState, type DragEvent, type ReactNode } from "react";
 
@@ -56,6 +56,7 @@ export function FolderTree({ scope, selected, onSelect, onDropItem }: Props) {
   const groupsQ = useQuery({ queryKey: ["groups"], queryFn: () => api.listGroups() });
   const [expanded, setExpanded] = useState<Set<string>>(() => loadExpanded(scope));
   const [permsFor, setPermsFor] = useState<string | null>(null);
+  const [lockFor, setLockFor] = useState<string | null>(null);
 
   const isAdmin = me.data?.role === "admin";
   const groups = groupsQ.data ?? [];
@@ -79,6 +80,11 @@ export function FolderTree({ scope, selected, onSelect, onDropItem }: Props) {
   const permM = useMutation({
     mutationFn: (v: { folderId: string; ids: string[] }) => api.setFolderGroups(v.folderId, v.ids),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["groups"] }),
+  });
+  const lockM = useMutation({
+    mutationFn: (v: { folderId: string; locked: boolean; edit_group_id: string | null }) =>
+      api.setFolderLock(v.folderId, { locked: v.locked, edit_group_id: v.edit_group_id }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["folders", scope] }),
   });
 
   const tree = buildTree(folders.data ?? []);
@@ -153,12 +159,18 @@ export function FolderTree({ scope, selected, onSelect, onDropItem }: Props) {
             )}
             <FolderIcon size={14} className="text-amber-500" />
             {restricted.has(node.id) && <Lock size={10} className="text-slate-400" />}
+            {node.locked && <LockKeyhole size={10} className="text-amber-500" />}
           </>,
           depth,
           <span className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
             {isAdmin && (
-              <button title="Permisos de visibilidad" onClick={() => setPermsFor(permsFor === node.id ? null : node.id)}>
+              <button title="Permisos de visibilidad" onClick={() => { setPermsFor(permsFor === node.id ? null : node.id); setLockFor(null); }}>
                 <Shield size={12} className={restricted.has(node.id) ? "text-[hsl(var(--accent))]" : ""} />
+              </button>
+            )}
+            {isAdmin && (
+              <button title="Bloqueo de edición" onClick={() => { setLockFor(lockFor === node.id ? null : node.id); setPermsFor(null); }}>
+                <LockKeyhole size={12} className={node.locked ? "text-amber-500" : ""} />
               </button>
             )}
             <button title="Subcarpeta" onClick={() => addFolder(node.id)}><FolderPlus size={13} /></button>
@@ -190,6 +202,26 @@ export function FolderTree({ scope, selected, onSelect, onDropItem }: Props) {
               );
             })}
             <button className="btn btn-ghost !py-1 mt-1 w-full justify-center" onClick={() => setPermsFor(null)}>Listo</button>
+          </div>
+        )}
+        {lockFor === node.id && (
+          <div className="absolute right-0 z-30 mt-1 w-56 rounded-lg border bg-[hsl(var(--bg))] p-2 shadow-lg">
+            <label className="flex cursor-pointer items-center gap-2 px-1 py-1 text-sm">
+              <input type="checkbox" checked={!!node.locked}
+                onChange={(e) => lockM.mutate({ folderId: node.id, locked: e.target.checked, edit_group_id: e.target.checked ? node.edit_group_id ?? null : null })} />
+              Bloqueada para edición
+            </label>
+            {node.locked && (
+              <div className="px-1 pb-1">
+                <p className="mb-1 text-xs text-[hsl(var(--muted))]">Solo puede editar:</p>
+                <select className="input w-full !py-1 text-xs" value={node.edit_group_id ?? ""}
+                  onChange={(e) => lockM.mutate({ folderId: node.id, locked: true, edit_group_id: e.target.value || null })}>
+                  <option value="">Nadie (solo admins)</option>
+                  {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              </div>
+            )}
+            <button className="btn btn-ghost !py-1 mt-1 w-full justify-center" onClick={() => setLockFor(null)}>Listo</button>
           </div>
         )}
         {isOpen && node.children.map((c) => renderNode(c, depth + 1))}

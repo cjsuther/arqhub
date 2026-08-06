@@ -7,7 +7,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.core.auth import Principal
 from app.models import Base, Tenant, User
-from app.schemas.api import FolderCreate, GroupCreate, ViewCreate, ViewInclude
+from app.schemas.api import ElementUpdate, FolderCreate, FolderLock, GroupCreate, ViewCreate, ViewInclude
 from app.services import catalog, folders, groups, model_io
 from app.services import views as views_svc
 
@@ -65,6 +65,32 @@ def test_folder_visibility_opt_in(ctx):
     # Add u1 to the group → sees 'a' again.
     groups.set_user_groups(db, p, u1.id, [g.id])
     assert _slugs(catalog.list_elements(db, p1)) == {"a", "b"}
+
+
+def test_folder_edit_lock(ctx):
+    db, tenant, p, admin, u1, u2 = ctx  # u1 = editor
+    p1 = _pr(tenant, u1)
+    f = folders.create_folder(db, p, FolderCreate(name="Bloqueada", scope="element"))
+    catalog.set_element_folder(db, p, "a", f.id)
+
+    # Open: the editor can modify.
+    catalog.update_element(db, p1, "a", ElementUpdate(description="v1"))
+
+    # Lock to a group the editor is NOT in → denied; admin still allowed.
+    g = groups.create_group(db, p, GroupCreate(name="Editores"))
+    folders.set_folder_lock(db, p, f.id, FolderLock(locked=True, edit_group_id=g.id))
+    with pytest.raises(Exception):
+        catalog.update_element(db, p1, "a", ElementUpdate(description="nope"))
+    catalog.update_element(db, p, "a", ElementUpdate(description="admin-ok"))
+
+    # Add the editor to the group → allowed again.
+    groups.set_user_groups(db, p, u1.id, [g.id])
+    catalog.update_element(db, p1, "a", ElementUpdate(description="v2"))
+
+    # Lock to nobody → even a group member (non-admin) is denied.
+    folders.set_folder_lock(db, p, f.id, FolderLock(locked=True, edit_group_id=None))
+    with pytest.raises(Exception):
+        catalog.update_element(db, p1, "a", ElementUpdate(description="blocked"))
 
 
 def test_draft_is_private_until_shared(ctx):

@@ -157,6 +157,7 @@ def get_view_graph(db, principal: Principal, slug: str) -> ViewGraphRead:
 def put_layout(db, principal: Principal, slug: str, payload: LayoutPut) -> None:
     """Persist node positions (presentation only — never touches the model)."""
     row = _get_view_row(db, principal.tenant_id, slug)
+    access.assert_can_edit_folder(db, principal, row.folder_id)  # respect folder edit lock
     db.execute(delete(ViewLayout).where(ViewLayout.view_id == row.id))
     for node in payload.nodes:
         db.add(
@@ -195,6 +196,8 @@ def create_view(db, principal: Principal, payload: ViewCreate) -> ViewRead:
 
 def set_view_folder(db, principal: Principal, slug: str, folder_id: str | None) -> ViewRead:
     row = _get_view_row(db, principal.tenant_id, slug)
+    access.assert_can_edit_folder(db, principal, row.folder_id)  # source
+    access.assert_can_edit_folder(db, principal, folder_id)  # target
     row.folder_id = folder_id
     write_audit(db, principal, action="move_folder", entity="view", entity_id=slug,
                 payload={"folder_id": folder_id})
@@ -204,6 +207,7 @@ def set_view_folder(db, principal: Principal, slug: str, folder_id: str | None) 
 
 def update_view(db, principal: Principal, slug: str, payload: ViewUpdate) -> ViewRead:
     row = _get_view_row(db, principal.tenant_id, slug)
+    access.assert_can_edit_folder(db, principal, row.folder_id)  # respect folder edit lock
     changes = payload.model_dump(exclude_none=True)
 
     # Editing an in-review view cancels its pending request and returns to draft

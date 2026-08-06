@@ -18,6 +18,13 @@ import sys
 import httpx
 import yaml
 
+# Force UTF-8 output so unicode in progress messages doesn't crash on a
+# cp1252 Windows console when piped.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 # Override with ARQHUB_SEED_BASE_URL to seed a remote/Docker stack
 # (e.g. http://api:8000/api/v1 from within docker compose).
 BASE = os.environ.get("ARQHUB_SEED_BASE_URL", "http://127.0.0.1:8000/api/v1")

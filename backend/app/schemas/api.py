@@ -147,6 +147,13 @@ class FolderRead(BaseModel):
     name: str
     scope: str
     parent_id: str | None = None
+    locked: bool = False
+    edit_group_id: str | None = None
+
+
+class FolderLock(BaseModel):
+    locked: bool
+    edit_group_id: str | None = None  # group allowed to edit; null + locked = nobody
 
 
 class FolderAssign(BaseModel):
