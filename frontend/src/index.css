@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -6,20 +6,30 @@
 
 @layer base {
   :root {
-    --bg: 0 0% 100%;
-    --surface: 0 0% 98%;
-    --border: 220 13% 91%;
+    --bg: 220 24% 97%;
+    --surface: 0 0% 100%;
+    --surface-2: 220 24% 98.5%;
+    --border: 220 16% 89%;
     --fg: 222 47% 11%;
     --muted: 220 9% 46%;
-    --accent: 221 83% 53%;
+    --accent: 243 75% 58%;
+    --accent-2: 265 80% 62%;
+    --accent-fg: 0 0% 100%;
+    --ring: 243 75% 58%;
+    --shadow: 222 47% 11%;
   }
   .dark {
-    --bg: 222 47% 8%;
-    --surface: 222 40% 12%;
-    --border: 222 20% 22%;
+    --bg: 224 44% 7%;
+    --surface: 223 34% 11%;
+    --surface-2: 223 30% 14%;
+    --border: 223 19% 21%;
     --fg: 210 40% 96%;
-    --muted: 217 15% 65%;
-    --accent: 217 91% 60%;
+    --muted: 217 15% 63%;
+    --accent: 245 82% 68%;
+    --accent-2: 268 84% 72%;
+    --accent-fg: 0 0% 100%;
+    --ring: 245 82% 68%;
+    --shadow: 224 60% 3%;
   }
   html,
   body {
@@ -30,6 +40,27 @@
     color: hsl(var(--fg));
     @apply font-sans antialiased;
   }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border: 2px solid transparent;
+    background-clip: content-box;
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted) / 0.6);
+    background-clip: content-box;
+  }
+  ::selection {
+    background-color: hsl(var(--accent) / 0.25);
+  }
 }
 
 @layer components {
@@ -37,23 +68,51 @@
     background-color: hsl(var(--surface));
     border-color: hsl(var(--border));
   }
+  .surface-2 {
+    background-color: hsl(var(--surface-2));
+    border-color: hsl(var(--border));
+  }
+  .card {
+    background-color: hsl(var(--surface));
+    border: 1px solid hsl(var(--border));
+    @apply rounded-xl shadow-sm;
+  }
   .btn {
-    @apply inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition;
+    @apply inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-150;
+    @apply focus-visible:outline-none focus-visible:ring-2;
+    --tw-ring-color: hsl(var(--ring) / 0.45);
+  }
+  .btn:active {
+    transform: translateY(0.5px);
   }
   .btn-primary {
-    background-color: hsl(var(--accent));
-    @apply text-white hover:opacity-90;
+    background-image: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--accent-2)));
+    color: hsl(var(--accent-fg));
+    box-shadow: 0 1px 2px hsl(var(--shadow) / 0.16), 0 6px 16px -8px hsl(var(--accent) / 0.6);
+    @apply hover:brightness-110;
   }
   .btn-ghost {
-    @apply hover:bg-black/5 dark:hover:bg-white/5;
     border: 1px solid hsl(var(--border));
+    @apply hover:bg-black/5 dark:hover:bg-white/[0.06];
   }
   .input {
     background-color: hsl(var(--bg));
     border: 1px solid hsl(var(--border));
-    @apply rounded-md px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500/40;
+    @apply rounded-lg px-3 py-1.5 text-sm outline-none transition;
+    @apply focus:border-transparent focus:ring-2;
+    --tw-ring-color: hsl(var(--ring) / 0.45);
+  }
+  .input::placeholder {
+    color: hsl(var(--muted) / 0.75);
   }
   .badge {
     @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+  /* Brand wordmark / accent text */
+  .brand-gradient {
+    background-image: linear-gradient(120deg, hsl(var(--accent)), hsl(var(--accent-2)));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 }

@@ -36,12 +36,19 @@ export function AppLayout() {
   return (
     <div className="flex h-full">
       <aside className={`surface flex shrink-0 flex-col border-r transition-[width] ${collapsed ? "w-14" : "w-56"}`}>
-        <div className="flex items-center gap-2 px-3 py-4 text-lg font-bold">
-          <button className="rounded p-1 hover:bg-black/5 dark:hover:bg-white/5" onClick={toggleSidebar}
+        <div className="flex items-center gap-2 px-3 py-4">
+          <button className="rounded-lg p-1.5 hover:bg-black/5 dark:hover:bg-white/5" onClick={toggleSidebar}
             title={collapsed ? "Expandir menú" : "Colapsar menú"}>
-            <Menu size={20} className="text-[hsl(var(--accent))]" />
+            <Menu size={18} />
           </button>
-          {!collapsed && <span className="flex items-center gap-2"><Network size={18} className="text-[hsl(var(--accent))]" /> ArqHub</span>}
+          {!collapsed && (
+            <span className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
+              <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-[hsl(var(--accent))] to-[hsl(var(--accent-2))] text-white shadow-sm">
+                <Network size={15} />
+              </span>
+              <span className="brand-gradient">ArqHub</span>
+            </span>
+          )}
         </div>
         <nav className="flex flex-col gap-1 px-2">
           {nav.map(({ to, label, icon: Icon }) => (
@@ -55,7 +62,10 @@ export function AppLayout() {
           ))}
         </nav>
         {!collapsed && (
-          <div className="mt-auto p-3 text-xs text-[hsl(var(--muted))]">Model-first · IA-first</div>
+          <div className="mt-auto flex items-center gap-2 p-3 text-xs text-[hsl(var(--muted))]">
+            <span className="h-1.5 w-1.5 rounded-full bg-gradient-to-br from-[hsl(var(--accent))] to-[hsl(var(--accent-2))]" />
+            Model-first · IA-first
+          </div>
         )}
       </aside>
 
