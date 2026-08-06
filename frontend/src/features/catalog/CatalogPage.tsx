@@ -27,12 +27,19 @@ export function CatalogPage() {
   const [sort, setSort] = useState("name");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
+  const [fieldKey, setFieldKey] = useState("");
+  const [fieldValue, setFieldValue] = useState("");
+
   const registry = useQuery({ queryKey: ["registry"], queryFn: api.registry });
   const folders = useQuery({ queryKey: ["folders", "element"], queryFn: () => api.listFolders("element") });
+  const kindFields = useQuery({ queryKey: ["fields", kind], queryFn: () => api.listFields(kind), enabled: !!kind });
   const elements = useQuery({
-    queryKey: ["elements", { q, kind, lifecycle }],
+    queryKey: ["elements", { q, kind, lifecycle, fieldKey, fieldValue }],
     queryFn: () =>
-      api.listElements({ q: q || undefined, kind: kind || undefined, lifecycle: lifecycle || undefined }),
+      api.listElements({
+        q: q || undefined, kind: kind || undefined, lifecycle: lifecycle || undefined,
+        field_key: fieldKey || undefined, field_value: fieldValue || undefined,
+      }),
   });
 
   const clearSel = () => setSelected(new Set());
@@ -128,6 +135,20 @@ export function CatalogPage() {
             {grouped ? <List size={15} /> : <LayoutGrid size={15} />} {grouped ? "Lista" : "Agrupar"}
           </button>
         </div>
+
+        {kind && (kindFields.data?.length ?? 0) > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-[hsl(var(--muted))]">Filtrar por campo:</span>
+            <select className="input" value={fieldKey} onChange={(e) => setFieldKey(e.target.value)}>
+              <option value="">—</option>
+              {kindFields.data!.map((f) => <option key={f.id} value={f.key}>{f.label}</option>)}
+            </select>
+            {fieldKey && (
+              <input className="input flex-1 min-w-40" placeholder="Valor…" value={fieldValue}
+                onChange={(e) => setFieldValue(e.target.value)} />
+            )}
+          </div>
+        )}
 
         {selected.size > 0 && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-[hsl(var(--accent))]/10 px-3 py-2 text-sm">

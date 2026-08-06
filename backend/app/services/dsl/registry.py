@@ -115,11 +115,23 @@ _UML: dict[str, list[tuple[str, str]]] = {
         ("use-case", "UseCase"), ("state", "State"), ("state-machine", "StateMachine"),
         ("lifeline", "Lifeline"), ("initial-node", "InitialNode"), ("final-node", "ActivityFinalNode"),
         ("fork-node", "ForkNode"), ("join-node", "JoinNode"), ("merge-node", "MergeNode"),
+        # Sequence / interaction diagrams
+        ("interaction", "Interaction"), ("execution-specification", "ExecutionSpecification"),
+        ("combined-fragment", "CombinedFragment"), ("interaction-use", "InteractionUse"),
+        # C4 model — context level
+        ("c4-person", "Person"),
     ],
     "application": [
         ("package", "Package"), ("uml-object", "InstanceSpecification"), ("enumeration", "Enumeration"),
         ("data-type", "DataType"), ("port", "Port"), ("collaboration", "Collaboration"),
         ("association-class", "AssociationClass"),
+        # Component diagram
+        ("provided-interface", "Interface"), ("required-interface", "Interface"),
+        # Deployment diagram
+        ("execution-environment", "ExecutionEnvironment"), ("deployment-spec", "DeploymentSpecification"),
+        # C4 model — container / component / code levels
+        ("c4-system", "SoftwareSystem"), ("c4-external-system", "ExternalSystem"),
+        ("c4-container", "Container"), ("c4-component", "Component"), ("c4-code", "Class"),
     ],
 }
 

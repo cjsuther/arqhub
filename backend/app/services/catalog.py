@@ -28,14 +28,15 @@ from .dsl.schema import DslDocument, ElementDef, PatchSection, RelationDef
 from .repository import load_graph, sync_graph
 
 
-def _folder_map(db, tenant_id: str) -> dict[str, str | None]:
+def _row_meta(db, tenant_id: str) -> dict[str, tuple[str | None, dict]]:
+    """slug -> (folder_id, custom_fields) — row-level metadata not carried by the DSL."""
     rows = db.scalars(
         select(ElementRow).where(ElementRow.tenant_id == tenant_id, ElementRow.deleted_at.is_(None))
     ).all()
-    return {r.slug: r.folder_id for r in rows}
+    return {r.slug: (r.folder_id, dict(r.custom_fields or {})) for r in rows}
 
 
-def _element_read(el: GraphElement, folder_id: str | None = None) -> ElementRead:
+def _element_read(el: GraphElement, folder_id: str | None = None, custom_fields: dict | None = None) -> ElementRead:
     return ElementRead(
         slug=el.slug,
         name=el.name,
@@ -47,8 +48,16 @@ def _element_read(el: GraphElement, folder_id: str | None = None) -> ElementRead
         tags=list(el.tags),
         properties=dict(el.properties),
         mappings=dict(el.mappings),
+        custom_fields=dict(custom_fields or {}),
         folder_id=folder_id,
     )
+
+
+def _field_matches(val, needle: str) -> bool:
+    n = needle.lower()
+    if isinstance(val, list):
+        return any(n in str(x).lower() for x in val)
+    return val is not None and val != "" and n in str(val).lower()
 
 
 def _relation_read(rel: GraphRelation) -> RelationshipRead:
@@ -79,13 +88,16 @@ def _apply(db, principal: Principal, patch: PatchSection, *, action: str, entity
 
 
 # --- Elements ----------------------------------------------------------------
-def list_elements(db, principal: Principal, *, kind=None, domain=None, lifecycle=None, tag=None, q=None):
+def list_elements(
+    db, principal: Principal, *, kind=None, domain=None, lifecycle=None, tag=None, q=None,
+    field_key=None, field_value=None,
+):
     graph = load_graph(db, principal.tenant_id)
-    folders = _folder_map(db, principal.tenant_id)
+    meta = _row_meta(db, principal.tenant_id)
     accessible = access.accessible_folder_ids(db, principal)  # None = see all (admin)
     out = []
     for el in graph.elements.values():
-        folder_id = folders.get(el.slug)
+        folder_id, cf = meta.get(el.slug, (None, {}))
         if not access.folder_visible(accessible, folder_id):
             continue  # element lives in a folder the user's groups can't see
         if kind and el.kind != kind:
@@ -96,9 +108,13 @@ def list_elements(db, principal: Principal, *, kind=None, domain=None, lifecycle
             continue
         if tag and tag not in el.tags:
             continue
-        if q and q.lower() not in f"{el.slug} {el.name} {el.description or ''}".lower():
+        if field_key and field_value and not _field_matches(cf.get(field_key), field_value):
             continue
-        out.append(_element_read(el, folder_id))
+        if q:
+            extra = " ".join(str(x) for v in cf.values() for x in (v if isinstance(v, list) else [v]))
+            if q.lower() not in f"{el.slug} {el.name} {el.description or ''} {extra}".lower():
+                continue
+        out.append(_element_read(el, folder_id, cf))
     return out
 
 
@@ -108,7 +124,20 @@ def get_element(db, tenant_id: str, slug: str) -> ElementRead:
     if el is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Element '{slug}' not found.")
     row = db.scalar(select(ElementRow).where(ElementRow.tenant_id == tenant_id, ElementRow.slug == slug))
-    return _element_read(el, row.folder_id if row else None)
+    return _element_read(el, row.folder_id if row else None, dict(row.custom_fields or {}) if row else None)
+
+
+def set_element_fields(db, principal: Principal, slug: str, values: dict) -> ElementRead:
+    row = db.scalar(select(ElementRow).where(ElementRow.tenant_id == principal.tenant_id, ElementRow.slug == slug))
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Element '{slug}' not found.")
+    access.assert_can_edit_folder(db, principal, row.folder_id)  # respect folder edit lock
+    merged = {**(row.custom_fields or {}), **values}
+    # Drop keys explicitly cleared (None / empty) to keep the bag tidy.
+    row.custom_fields = {k: v for k, v in merged.items() if v not in (None, "", [])}
+    write_audit(db, principal, action="set_fields", entity="element", entity_id=slug)
+    db.commit()
+    return get_element(db, principal.tenant_id, slug)
 
 
 def set_element_folder(db, principal: Principal, slug: str, folder_id: str | None) -> ElementRead:

@@ -46,7 +46,41 @@ class ElementRead(BaseModel):
     tags: list[str]
     properties: dict
     mappings: dict
+    custom_fields: dict = {}
     folder_id: str | None = None
+
+
+# --- Custom fields per kind (SPEC §4.1) --------------------------------------
+FIELD_TYPES = {"text", "longtext", "date", "time", "select", "multiselect", "users", "user", "number"}
+
+
+class FieldDefCreate(BaseModel):
+    key: str
+    label: str
+    field_type: str
+    options: list[str] = []
+    position: int = 0
+
+
+class FieldDefUpdate(BaseModel):
+    label: str | None = None
+    field_type: str | None = None
+    options: list[str] | None = None
+    position: int | None = None
+
+
+class FieldDefRead(BaseModel):
+    id: str
+    kind: str
+    key: str
+    label: str
+    field_type: str
+    options: list[str] = []
+    position: int = 0
+
+
+class FieldValues(BaseModel):
+    values: dict  # field key -> value (str | number | list)
 
 
 # --- Relationships -----------------------------------------------------------

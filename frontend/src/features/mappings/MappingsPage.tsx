@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
+import { ListPlus, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { DataTable, type Column } from "../../components/DataTable";
 import { api } from "../../lib/api";
 import { langLabel } from "../../lib/ui";
+import { FieldDefsDialog } from "./FieldDefsDialog";
 
 const LAYERS: { value: string; label: string }[] = [
   { value: "business", label: "Negocio" },
@@ -37,6 +38,7 @@ export function MappingsPage() {
   const [layer, setLayer] = useState("application");
   const [proj, setProj] = useState<Record<string, string>>({ archimate: "", bpmn: "", uml: "" });
   const [error, setError] = useState<string | null>(null);
+  const [fieldsKind, setFieldsKind] = useState<string | null>(null);
 
   const add = useMutation({
     mutationFn: () => api.addKind({ key, layer, archimate: proj.archimate || null, bpmn: proj.bpmn || null, uml: proj.uml || null }),
@@ -102,11 +104,20 @@ export function MappingsPage() {
       <DataTable
         columns={columns} rows={rows} rowKey={(r) => r.key} initialSort="key"
         filterPlaceholder="Filtrar componentes…"
-        actions={isAdmin ? (r) => (r.custom ? (
-          <button className="btn btn-ghost !py-1 text-red-600" title="Eliminar componente"
-            onClick={() => window.confirm(`¿Eliminar el componente "${r.key}"?`) && del.mutate(r.key)}><Trash2 size={14} /></button>
-        ) : null) : undefined}
+        actions={isAdmin ? (r) => (
+          <div className="flex justify-end gap-1">
+            <button className="btn btn-ghost !py-1" title="Campos personalizados" onClick={() => setFieldsKind(r.key)}>
+              <ListPlus size={14} />
+            </button>
+            {r.custom && (
+              <button className="btn btn-ghost !py-1 text-red-600" title="Eliminar componente"
+                onClick={() => window.confirm(`¿Eliminar el componente "${r.key}"?`) && del.mutate(r.key)}><Trash2 size={14} /></button>
+            )}
+          </div>
+        ) : undefined}
       />
+
+      {fieldsKind && <FieldDefsDialog kind={fieldsKind} onClose={() => setFieldsKind(null)} />}
     </div>
   );
 }

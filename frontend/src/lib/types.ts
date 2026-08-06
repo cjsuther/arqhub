@@ -16,7 +16,21 @@ export interface Element {
   tags: string[];
   properties: Record<string, string>;
   mappings: Record<string, string>;
+  custom_fields: Record<string, unknown>;
   folder_id: string | null;
+}
+
+export type FieldType =
+  | "text" | "longtext" | "date" | "time" | "select" | "multiselect" | "users" | "user" | "number";
+
+export interface FieldDef {
+  id: string;
+  kind: string;
+  key: string;
+  label: string;
+  field_type: FieldType;
+  options: string[];
+  position: number;
 }
 
 export interface Folder {

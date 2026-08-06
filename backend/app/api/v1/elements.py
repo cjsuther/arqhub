@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Response, status
 
 from ...core.deps import DbDep, PrincipalDep, require_role
-from ...schemas.api import ElementCreate, ElementRead, ElementUpdate, FolderAssign
+from ...schemas.api import ElementCreate, ElementRead, ElementUpdate, FieldValues, FolderAssign
 from ...services import catalog, graph_ops
 from ...services.graph_ops import ImpactResult
 
@@ -21,9 +21,12 @@ def list_elements(
     lifecycle: str | None = None,
     tag: str | None = None,
     q: str | None = None,
+    field_key: str | None = None,
+    field_value: str | None = None,
 ):
     return catalog.list_elements(
-        db, principal, kind=kind, domain=domain, lifecycle=lifecycle, tag=tag, q=q
+        db, principal, kind=kind, domain=domain, lifecycle=lifecycle, tag=tag, q=q,
+        field_key=field_key, field_value=field_value,
     )
 
 
@@ -57,6 +60,11 @@ def update_element(db: DbDep, slug: str, payload: ElementUpdate, principal=Depen
 @router.patch("/{slug}/folder", response_model=ElementRead)
 def set_folder(db: DbDep, slug: str, body: FolderAssign, principal=Depends(require_role("editor"))):
     return catalog.set_element_folder(db, principal, slug, body.folder_id)
+
+
+@router.patch("/{slug}/fields", response_model=ElementRead)
+def set_fields(db: DbDep, slug: str, body: FieldValues, principal=Depends(require_role("editor"))):
+    return catalog.set_element_fields(db, principal, slug, body.values)
 
 
 @router.delete("/{slug}", status_code=status.HTTP_204_NO_CONTENT)

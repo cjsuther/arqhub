@@ -28,8 +28,29 @@ class Element(Base, PkMixin, TenantMixin, TimestampMixin):
     tags: Mapped[list] = mapped_column(default=list)
     properties: Mapped[dict] = mapped_column(default=dict)
     mappings: Mapped[dict] = mapped_column(default=dict)
+    # Typed custom-field values keyed by field-def key (SPEC §4.1). Row-level (not
+    # in the DSL), so it survives DSL syncs — like folder_id.
+    custom_fields: Mapped[dict] = mapped_column(default=dict)
     folder_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("folders.id"), default=None, index=True)
     deleted_at: Mapped[str | None] = mapped_column(String(32), default=None, index=True)
+
+
+class FieldDef(Base, PkMixin, TenantMixin, TimestampMixin):
+    """A custom field defined for a component kind (SPEC §4.1).
+
+    ``field_type``: text | longtext | date | time | select | multiselect | users |
+    user | number. ``options`` holds the choices for select/multiselect.
+    """
+
+    __tablename__ = "field_defs"
+    __table_args__ = (UniqueConstraint("tenant_id", "kind", "key", name="uq_field_tenant_kind_key"),)
+
+    kind: Mapped[str] = mapped_column(String(64), index=True)
+    key: Mapped[str] = mapped_column(String(64))
+    label: Mapped[str] = mapped_column(String(255))
+    field_type: Mapped[str] = mapped_column(String(24))
+    options: Mapped[list] = mapped_column(default=list)
+    position: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Relationship(Base, PkMixin, TenantMixin, TimestampMixin):

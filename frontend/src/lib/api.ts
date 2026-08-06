@@ -4,6 +4,7 @@ import type {
   Approval,
   Comment,
   Element,
+  FieldDef,
   Finding,
   Folder,
   Group,
@@ -43,6 +44,12 @@ export const api = {
   addKind: (body: { key: string; layer: string; archimate?: string | null; bpmn?: string | null; uml?: string | null }) =>
     http<Registry>("/meta/kinds", { method: "POST", body: JSON.stringify(body) }),
   deleteKind: (key: string) => http<Registry>(`/meta/kinds/${key}`, { method: "DELETE" }),
+  listFields: (kind?: string) => http<FieldDef[]>(`/meta/fields${qs({ kind })}`),
+  createField: (kind: string, body: { key: string; label: string; field_type: string; options?: string[] }) =>
+    http<FieldDef>(`/meta/kinds/${kind}/fields`, { method: "POST", body: JSON.stringify(body) }),
+  updateField: (id: string, body: { label?: string; field_type?: string; options?: string[] }) =>
+    http<FieldDef>(`/meta/fields/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteField: (id: string) => http<void>(`/meta/fields/${id}`, { method: "DELETE" }),
 
   listElements: (f: {
     kind?: string;
@@ -50,7 +57,11 @@ export const api = {
     lifecycle?: string;
     tag?: string;
     q?: string;
+    field_key?: string;
+    field_value?: string;
   } = {}) => http<Element[]>(`/elements${qs(f)}`),
+  setElementFields: (slug: string, values: Record<string, unknown>) =>
+    http<Element>(`/elements/${slug}/fields`, { method: "PATCH", body: JSON.stringify({ values }) }),
   getElement: (slug: string) => http<Element>(`/elements/${slug}`),
   createElement: (body: Partial<Element> & { slug: string; name: string; kind: string }) =>
     http<Element>("/elements", { method: "POST", body: JSON.stringify(body) }),

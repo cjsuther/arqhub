@@ -5,6 +5,7 @@ import { Link, useParams } from "react-router-dom";
 import { FolderSelect } from "../../components/FolderSelect";
 import { api } from "../../lib/api";
 import { KindBadge, LifecycleBadge, StatusBadge, langLabel } from "../../lib/ui";
+import { CustomFields } from "./CustomFields";
 
 export function ElementDetailPage() {
   const { slug = "" } = useParams();
@@ -60,6 +61,8 @@ export function ElementDetailPage() {
                 onChange={(id) => moveFolder.mutate(id)} className="input !py-1 text-sm" />
             </div>
           </div>
+
+          <CustomFields element={el} onSaved={() => element.refetch()} />
 
           <section className="surface rounded-lg border p-4">
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[hsl(var(--muted))]">
