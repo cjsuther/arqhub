@@ -84,6 +84,28 @@ def test_admin_override_approves_immediately(ctx):
     assert r.status == "approved"
 
 
+def test_edit_published_starts_private_draft(ctx):
+    from app.schemas.api import ViewUpdate
+    db, tenant, p, admin, u1, u2 = ctx
+    ar = approvals.submit_review(db, p, "v1", [admin.id], "revisá")
+    approvals.approve(db, p, ar.id, "ok")
+    approvals.publish(db, p, "v1")
+    assert views_svc.get_view(db, tenant.id, "v1").status == "published"
+
+    # An editor edits the published view → new working version: draft + owned by them.
+    pe = Principal(user_id=u1.id, tenant_id=tenant.id, email=u1.email, role="editor")
+    v = views_svc.update_view(db, pe, "v1", ViewUpdate(name="Vista 1 (v2)"))
+    assert v.status == "draft" and v.created_by == u1.id
+
+
+def test_delete_view(ctx):
+    db, tenant, p, admin, u1, u2 = ctx
+    views_svc.delete_view(db, p, "v1")
+    from fastapi import HTTPException
+    with pytest.raises(HTTPException):
+        views_svc.get_view(db, tenant.id, "v1")
+
+
 def test_publish_records_status_author_and_date(ctx):
     db, tenant, p, admin, u1, u2 = ctx
     ar = approvals.submit_review(db, p, "v1", [u1.id], "revisá")

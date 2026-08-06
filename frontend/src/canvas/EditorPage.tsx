@@ -14,7 +14,7 @@ import {
   type Connection,
   type Node,
 } from "@xyflow/react";
-import { ArrowLeft, FileText, History, LayoutGrid, Magnet, MessageSquare, Redo2, Save, Share2, Undo2 } from "lucide-react";
+import { ArrowLeft, FileText, History, LayoutGrid, Magnet, MessageSquare, Redo2, Save, Share2, Trash2, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -425,6 +425,13 @@ function EditorInner() {
     refetch();
   }
 
+  async function deleteThisView() {
+    if (!window.confirm(`¿Eliminar el diagrama «${vg?.view.name}»? No se puede deshacer (los componentes no se borran).`)) return;
+    await api.deleteView(slug);
+    qc.invalidateQueries({ queryKey: ["views"] });
+    navigate("/views");
+  }
+
   async function organize() {
     const vgd = viewGraph.data;
     const reg = registry.data;
@@ -505,6 +512,9 @@ function EditorInner() {
           </button>
           <button className="btn btn-primary" onClick={persistLayout} title="Guardar layout">
             <Save size={15} /> <span className="hidden sm:inline">{saved ? "Guardado" : "Guardar layout"}</span>
+          </button>
+          <button className="btn btn-ghost text-red-600" onClick={deleteThisView} title="Eliminar diagrama">
+            <Trash2 size={15} />
           </button>
         </div>
       </header>

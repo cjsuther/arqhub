@@ -43,6 +43,12 @@ def update_view(db: DbDep, slug: str, payload: ViewUpdate, principal=Depends(req
     return views.update_view(db, principal, slug, payload)
 
 
+@router.delete("/{slug}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_view(db: DbDep, slug: str, principal=Depends(require_role("editor"))):
+    views.delete_view(db, principal, slug)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.patch("/{slug}/folder", response_model=ViewRead)
 def set_folder(db: DbDep, slug: str, body: FolderAssign, principal=Depends(require_role("editor"))):
     return views.set_view_folder(db, principal, slug, body.folder_id)

@@ -83,6 +83,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ ...body, include: { elements: [], relations: "auto" } }),
     }),
+  deleteView: (slug: string) => http<void>(`/views/${slug}`, { method: "DELETE" }),
   getViewGraph: (slug: string) => http<ViewGraph>(`/views/${slug}/graph`),
   updateViewNotes: (slug: string, notes: string) =>
     http<View>(`/views/${slug}`, { method: "PATCH", body: JSON.stringify({ notes }) }),

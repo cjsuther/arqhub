@@ -9,7 +9,16 @@ from sqlalchemy import delete
 
 from ..core.auth import Principal
 from ..core.deps import write_audit
-from ..models import ApprovalRequest, ModelVersion, User, View, ViewLayout, ViewShare
+from ..models import (
+    ApprovalDecision,
+    ApprovalRequest,
+    Comment,
+    ModelVersion,
+    User,
+    View,
+    ViewLayout,
+    ViewShare,
+)
 from . import access
 from ..schemas.api import (
     LayoutNode,
@@ -210,11 +219,11 @@ def update_view(db, principal: Principal, slug: str, payload: ViewUpdate) -> Vie
     access.assert_can_edit_folder(db, principal, row.folder_id)  # respect folder edit lock
     changes = payload.model_dump(exclude_none=True)
 
-    # Editing an in-review view cancels its pending request and returns to draft
-    # (SPEC §11), unless the caller is explicitly changing the status or only
-    # touching presentation-side documentation (notes never affect the model).
+    # A model edit on an in-review/published/deprecated view starts a NEW working
+    # version: it returns to draft, private to the editor, until re-approved (§11).
+    # `notes` is presentation-side documentation and never triggers this.
     model_changes = {k for k in changes if k not in {"notes"}}
-    if row.status == "in_review" and "status" not in changes and model_changes:
+    if row.status in ("in_review", "published", "deprecated") and "status" not in changes and model_changes:
         for ar in db.scalars(
             select(ApprovalRequest).where(
                 ApprovalRequest.view_id == row.id, ApprovalRequest.status == "pending"
@@ -222,12 +231,34 @@ def update_view(db, principal: Principal, slug: str, payload: ViewUpdate) -> Vie
         ):
             ar.status = "cancelled"
         set_view_status(db, row, "draft", principal)
+        row.created_by = principal.user_id  # the new working version belongs to the editor
 
     for field, value in changes.items():
         setattr(row, field, value)
     write_audit(db, principal, action="update", entity="view", entity_id=slug, payload={"fields": list(changes)})
     db.commit()
     return _view_read(db, principal.tenant_id, row)
+
+
+def delete_view(db, principal: Principal, slug: str) -> None:
+    """Delete a diagram and everything attached to it (layout, shares, approvals,
+    comments, version snapshots). The elements themselves are not touched."""
+    row = _get_view_row(db, principal.tenant_id, slug)
+    access.assert_can_edit_folder(db, principal, row.folder_id)  # respect folder edit lock
+
+    approval_ids = [a.id for a in db.scalars(select(ApprovalRequest).where(ApprovalRequest.view_id == row.id)).all()]
+    if approval_ids:
+        db.execute(delete(ApprovalDecision).where(ApprovalDecision.approval_id.in_(approval_ids)))
+    db.execute(delete(ApprovalRequest).where(ApprovalRequest.view_id == row.id))
+    db.execute(delete(ViewLayout).where(ViewLayout.view_id == row.id))
+    db.execute(delete(ViewShare).where(ViewShare.view_id == row.id))
+    db.execute(delete(Comment).where(Comment.view_id == row.id))
+    db.execute(delete(ModelVersion).where(
+        ModelVersion.tenant_id == principal.tenant_id, ModelVersion.scope == "view", ModelVersion.scope_id == slug
+    ))
+    db.delete(row)
+    write_audit(db, principal, action="delete", entity="view", entity_id=slug)
+    db.commit()
 
 
 def _view_subgraph(graph: ModelGraph, view: ViewDef) -> ModelGraph:
