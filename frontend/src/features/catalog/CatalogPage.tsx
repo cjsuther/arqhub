@@ -27,22 +27,18 @@ export function CatalogPage() {
   const [sort, setSort] = useState("name");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const [fieldKey, setFieldKey] = useState("");
-  const [fieldValue, setFieldValue] = useState("");
+  const [fieldFilters, setFieldFilters] = useState<Record<string, string>>({});
+  const setFF = (key: string, v: string) => setFieldFilters((s) => ({ ...s, [key]: v }));
 
   const registry = useQuery({ queryKey: ["registry"], queryFn: api.registry });
   const folders = useQuery({ queryKey: ["folders", "element"], queryFn: () => api.listFolders("element") });
   const allFields = useQuery({ queryKey: ["fields", "all"], queryFn: () => api.listFields() });
-  // Distinct custom fields across every type (dedup by key) so you can filter without picking a type first.
+  // Distinct custom fields across every type (dedup by key) — each one is its own filter input.
   const fieldOpts = [...new Map((allFields.data ?? []).map((f) => [f.key, f])).values()];
-  const fieldType = fieldOpts.find((f) => f.key === fieldKey)?.field_type;
   const elements = useQuery({
-    queryKey: ["elements", { q, kind, lifecycle, fieldKey, fieldValue }],
+    queryKey: ["elements", { q, kind, lifecycle }],
     queryFn: () =>
-      api.listElements({
-        q: q || undefined, kind: kind || undefined, lifecycle: lifecycle || undefined,
-        field_key: fieldKey || undefined, field_value: fieldValue || undefined,
-      }),
+      api.listElements({ q: q || undefined, kind: kind || undefined, lifecycle: lifecycle || undefined }),
   });
 
   const clearSel = () => setSelected(new Set());
@@ -71,8 +67,20 @@ export function CatalogPage() {
     folder === ALL ? true : folder === UNFILED ? e.folder_id == null : !!e.folder_id && subtree!.has(e.folder_id);
   const sortKey = (e: Element) =>
     sort === "kind" ? e.kind : sort === "lifecycle" ? e.lifecycle : e.name;
+
+  // Filter directly by each custom field's value (substring, case-insensitive — same as backend).
+  const activeFF = Object.entries(fieldFilters).filter(([, v]) => v.trim() !== "");
+  const fieldMatch = (val: unknown, needle: string) => {
+    const n = needle.toLowerCase();
+    if (Array.isArray(val)) return val.some((x) => String(x).toLowerCase().includes(n));
+    return val != null && val !== "" && String(val).toLowerCase().includes(n);
+  };
+  const matchesFields = (e: Element) =>
+    activeFF.every(([k, v]) => fieldMatch(e.custom_fields?.[k], v));
+
   const visible = (elements.data ?? [])
     .filter(inFolder)
+    .filter(matchesFields)
     .sort((a, b) => sortKey(a).localeCompare(sortKey(b)) || a.name.localeCompare(b.name));
 
   function card(el: Element) {
@@ -140,20 +148,25 @@ export function CatalogPage() {
         </div>
 
         {fieldOpts.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-[hsl(var(--muted))]">Filtrar por campo:</span>
-            <select className="input" value={fieldKey}
-              onChange={(e) => { setFieldKey(e.target.value); setFieldValue(""); }}>
-              <option value="">—</option>
-              {fieldOpts.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-            </select>
-            {fieldKey && (
-              <input className="input flex-1 min-w-40"
-                type={fieldType === "date" ? "date" : fieldType === "time" ? "time" : fieldType === "number" ? "number" : "text"}
-                placeholder="Valor…" value={fieldValue} onChange={(e) => setFieldValue(e.target.value)} />
-            )}
-            {fieldKey && fieldValue && (
-              <button className="btn btn-ghost !py-1" onClick={() => setFieldValue("")}>Limpiar</button>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span className="text-xs text-[hsl(var(--muted))]">Filtrar por:</span>
+            {fieldOpts.map((f) => (
+              <label key={f.key} className="flex items-center gap-1.5">
+                <span className="text-xs text-[hsl(var(--muted))]">{f.label}</span>
+                {f.field_type === "select" || f.field_type === "multiselect" ? (
+                  <select className="input !py-1" value={fieldFilters[f.key] ?? ""} onChange={(e) => setFF(f.key, e.target.value)}>
+                    <option value="">—</option>
+                    {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : (
+                  <input className="input !py-1 min-w-36"
+                    type={f.field_type === "date" ? "date" : f.field_type === "time" ? "time" : f.field_type === "number" ? "number" : "text"}
+                    placeholder="…" value={fieldFilters[f.key] ?? ""} onChange={(e) => setFF(f.key, e.target.value)} />
+                )}
+              </label>
+            ))}
+            {activeFF.length > 0 && (
+              <button className="btn btn-ghost !py-1" onClick={() => setFieldFilters({})}>Limpiar</button>
             )}
           </div>
         )}
