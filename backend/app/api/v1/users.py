@@ -5,10 +5,35 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Response, status
 
 from ...core.deps import DbDep, PrincipalDep, require_role
-from ...schemas.api import IdList, UserCreate, UserRead, UserUpdate
-from ...services import groups, users
+from ...schemas.api import (
+    IdList,
+    TokenCreate,
+    TokenCreated,
+    TokenRead,
+    UserCreate,
+    UserRead,
+    UserUpdate,
+)
+from ...services import groups, tokens, users
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+# --- Personal access tokens (self-service, any authenticated user) -----------
+@router.get("/me/tokens", response_model=list[TokenRead])
+def list_tokens(db: DbDep, principal: PrincipalDep):
+    return tokens.list_tokens(db, principal)
+
+
+@router.post("/me/tokens", response_model=TokenCreated, status_code=status.HTTP_201_CREATED)
+def create_token(db: DbDep, body: TokenCreate, principal: PrincipalDep):
+    return tokens.create_token(db, principal, body)
+
+
+@router.delete("/me/tokens/{token_id}", status_code=status.HTTP_204_NO_CONTENT)
+def revoke_token(db: DbDep, token_id: str, principal: PrincipalDep):
+    tokens.revoke_token(db, principal, token_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("", response_model=list[UserRead])

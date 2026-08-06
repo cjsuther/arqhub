@@ -1,5 +1,6 @@
 // Thin typed API client. All calls go through the Vite proxy to the backend.
 import type {
+  ApiToken,
   AppNotification,
   Approval,
   Comment,
@@ -139,6 +140,9 @@ export const api = {
 
   listUsers: (role?: string) => http<User[]>(`/users${qs({ role })}`),
   getMe: () => http<User>("/users/me"),
+  listTokens: () => http<ApiToken[]>("/users/me/tokens"),
+  createToken: (name: string) => http<ApiToken & { token: string }>("/users/me/tokens", { method: "POST", body: JSON.stringify({ name }) }),
+  revokeToken: (id: string) => http<void>(`/users/me/tokens/${id}`, { method: "DELETE" }),
   createUser: (body: { email: string; display_name: string; role: string }) =>
     http<User>("/users", { method: "POST", body: JSON.stringify(body) }),
   updateUser: (id: string, body: { role?: string; display_name?: string; email?: string }) =>

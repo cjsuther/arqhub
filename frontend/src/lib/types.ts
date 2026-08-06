@@ -146,6 +146,14 @@ export interface ViewGraph {
 
 export type Role = "viewer" | "editor" | "approver" | "admin";
 
+export interface ApiToken {
+  id: string;
+  name: string;
+  prefix: string;
+  last_used_at: string | null;
+  created_at: string;
+}
+
 export interface GroupRef {
   id: string;
   name: string;

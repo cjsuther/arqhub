@@ -14,9 +14,10 @@ from .model import (
     ViewLayout,
     ViewShare,
 )
-from .org import Domain, Folder, Group, GroupFolder, Tenant, User, UserGroup
+from .org import ApiToken, Domain, Folder, Group, GroupFolder, Tenant, User, UserGroup
 
 __all__ = [
+    "ApiToken",
     "ApprovalDecision",
     "ApprovalRequest",
     "AuditLog",

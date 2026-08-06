@@ -22,7 +22,16 @@ def get_principal(
     authorization: Annotated[str | None, Header()] = None,
 ) -> Principal:
     token = authorization.removeprefix("Bearer ").strip() if authorization else None
-    principal = get_auth_provider().authenticate(db, token)
+    principal: Principal | None = None
+    # A personal access token (MCP/scripts) authenticates as its user.
+    if token and token.startswith("arqhub_"):
+        from ..services.tokens import authenticate_token
+
+        principal = authenticate_token(db, token)
+        if principal is None:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token inválido o revocado.")
+    if principal is None:
+        principal = get_auth_provider().authenticate(db, token)
     set_request_tenant(db, principal.tenant_id)  # RLS second line (Postgres only)
     return principal
 

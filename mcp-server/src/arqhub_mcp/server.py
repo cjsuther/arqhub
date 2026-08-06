@@ -128,6 +128,39 @@ def propose_optimization() -> list[dict]:
     return api.get("/analysis")
 
 
+@mcp.tool()
+def list_folders(scope: str = "element") -> list[dict]:
+    """List folders of a scope ('element' | 'view')."""
+    return api.get("/folders", {"scope": scope})
+
+
+@mcp.tool()
+def create_folder(name: str, scope: str = "element", parent_id: str = "") -> dict:
+    """Create a folder ('element' | 'view'). parent_id empty = root."""
+    return api.post("/folders", json={"name": name, "scope": scope, "parent_id": parent_id or None})
+
+
+@mcp.tool()
+def move_element_to_folder(slug: str, folder_id: str = "") -> dict:
+    """Move a component into a folder (empty folder_id = no folder)."""
+    return api.patch(f"/elements/{slug}/folder", {"folder_id": folder_id or None})
+
+
+@mcp.tool()
+def move_view_to_folder(slug: str, folder_id: str = "") -> dict:
+    """Move a view into a folder (empty folder_id = no folder)."""
+    return api.patch(f"/views/{slug}/folder", {"folder_id": folder_id or None})
+
+
+@mcp.tool()
+def add_elements_to_view(slug: str, elements: list[str]) -> dict:
+    """Add existing components to a view (merged with its current include set)."""
+    view = api.get(f"/views/{slug}")
+    include = view.get("include") or {"elements": [], "relations": "auto"}
+    merged = list(dict.fromkeys([*include.get("elements", []), *elements]))
+    return api.patch(f"/views/{slug}", {"include": {**include, "elements": merged}})
+
+
 def main() -> None:
     """Run the server.
 

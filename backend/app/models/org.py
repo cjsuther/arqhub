@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, String
+from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base, PkMixin, TenantMixin, TimestampMixin
@@ -31,6 +33,22 @@ class Domain(Base, PkMixin, TenantMixin, TimestampMixin):
     slug: Mapped[str] = mapped_column(String(64), index=True)
     name: Mapped[str] = mapped_column(String(255))
     ad_group_id: Mapped[str | None] = mapped_column(String(64), default=None)
+
+
+class ApiToken(Base, PkMixin, TenantMixin, TimestampMixin):
+    """A personal access token a user manages from their profile — used to
+    authenticate the MCP server (or scripts) as that user (SPEC §9, §12).
+
+    Only the SHA-256 hash is stored; the plaintext is shown once at creation.
+    """
+
+    __tablename__ = "api_tokens"
+
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    prefix: Mapped[str] = mapped_column(String(16))  # first chars, for display
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
 
 
 class Group(Base, PkMixin, TenantMixin, TimestampMixin):

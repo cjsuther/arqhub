@@ -12,6 +12,7 @@ import { CatalogPage } from "./features/catalog/CatalogPage";
 import { ElementDetailPage } from "./features/catalog/ElementDetailPage";
 import { MappingsPage } from "./features/mappings/MappingsPage";
 import { NotificationsPage } from "./features/notifications/NotificationsPage";
+import { ProfilePage } from "./features/profile/ProfilePage";
 import { UsersPage } from "./features/users/UsersPage";
 import { ViewsPage } from "./features/views/ViewsPage";
 
@@ -32,6 +33,7 @@ const router = createBrowserRouter([
       { path: "analysis", element: <AnalysisPage /> },
       { path: "mappings", element: <MappingsPage /> },
       { path: "notifications", element: <NotificationsPage /> },
+      { path: "profile", element: <ProfilePage /> },
       { path: "users", element: <UsersPage /> },
     ],
   },

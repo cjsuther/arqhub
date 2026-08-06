@@ -274,6 +274,23 @@ class IdList(BaseModel):
     ids: list[str] = []
 
 
+# --- Personal API tokens (MCP auth, SPEC §9/§12) -----------------------------
+class TokenCreate(BaseModel):
+    name: str = "token"
+
+
+class TokenRead(BaseModel):
+    id: str
+    name: str
+    prefix: str
+    last_used_at: str | None = None
+    created_at: str
+
+
+class TokenCreated(TokenRead):
+    token: str  # plaintext, shown once
+
+
 # --- Notifications (SPEC §11) ------------------------------------------------
 class NotificationRead(BaseModel):
     id: str

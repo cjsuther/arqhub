@@ -78,10 +78,11 @@ export function AppLayout() {
               {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             </button>
             {me.data && (
-              <div className="hidden items-center gap-2 sm:flex" title={me.data.email}>
+              <NavLink to="/profile" className="hidden items-center gap-2 rounded px-1.5 py-1 hover:bg-black/5 dark:hover:bg-white/5 sm:flex"
+                title="Mi perfil y tokens">
                 <span className="max-w-32 truncate text-sm font-medium">{me.data.display_name}</span>
                 <span className="badge bg-black/5 dark:bg-white/10">{ROLE_LABEL[me.data.role] ?? me.data.role}</span>
-              </div>
+              </NavLink>
             )}
           </div>
         </header>
