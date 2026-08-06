@@ -32,7 +32,10 @@ export function CatalogPage() {
 
   const registry = useQuery({ queryKey: ["registry"], queryFn: api.registry });
   const folders = useQuery({ queryKey: ["folders", "element"], queryFn: () => api.listFolders("element") });
-  const kindFields = useQuery({ queryKey: ["fields", kind], queryFn: () => api.listFields(kind), enabled: !!kind });
+  const allFields = useQuery({ queryKey: ["fields", "all"], queryFn: () => api.listFields() });
+  // Distinct custom fields across every type (dedup by key) so you can filter without picking a type first.
+  const fieldOpts = [...new Map((allFields.data ?? []).map((f) => [f.key, f])).values()];
+  const fieldType = fieldOpts.find((f) => f.key === fieldKey)?.field_type;
   const elements = useQuery({
     queryKey: ["elements", { q, kind, lifecycle, fieldKey, fieldValue }],
     queryFn: () =>
@@ -136,16 +139,21 @@ export function CatalogPage() {
           </button>
         </div>
 
-        {kind && (kindFields.data?.length ?? 0) > 0 && (
+        {fieldOpts.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-[hsl(var(--muted))]">Filtrar por campo:</span>
-            <select className="input" value={fieldKey} onChange={(e) => setFieldKey(e.target.value)}>
+            <select className="input" value={fieldKey}
+              onChange={(e) => { setFieldKey(e.target.value); setFieldValue(""); }}>
               <option value="">—</option>
-              {kindFields.data!.map((f) => <option key={f.id} value={f.key}>{f.label}</option>)}
+              {fieldOpts.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
             </select>
             {fieldKey && (
-              <input className="input flex-1 min-w-40" placeholder="Valor…" value={fieldValue}
-                onChange={(e) => setFieldValue(e.target.value)} />
+              <input className="input flex-1 min-w-40"
+                type={fieldType === "date" ? "date" : fieldType === "time" ? "time" : fieldType === "number" ? "number" : "text"}
+                placeholder="Valor…" value={fieldValue} onChange={(e) => setFieldValue(e.target.value)} />
+            )}
+            {fieldKey && fieldValue && (
+              <button className="btn btn-ghost !py-1" onClick={() => setFieldValue("")}>Limpiar</button>
             )}
           </div>
         )}
